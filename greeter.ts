@@ -42,7 +42,9 @@ class Nonogrid {
 }
 
 function decodeGrid() {
-    var nonogrid = new Nonogrid(5);
+    let xSize = Math.floor(Math.random() * 20) + 1;
+    let ySize = Math.floor(Math.random() * 20) + 1;
+    var nonogrid = new Nonogrid(xSize, ySize);
     console.log("grid width " + nonogrid.width);
     console.log("grid height " + nonogrid.height);
 
