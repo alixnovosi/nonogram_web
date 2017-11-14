@@ -8,9 +8,10 @@ let METASQUARE_SPACER = 10;
 let HORIZ_SPACER = "─";
 let VERT_SPACER = "│";
 
-let BACKGROUND = "grey";
-let VALUE = "black";
-let EMPTY = "white";
+let BACKGROUND = "#555555";
+let VALUE = "#000000";
+let DENIED = "#DDDDDD"
+let EMPTY = "#FFFFFF";
 
 class Nonosquare {
     constructor() {
@@ -39,7 +40,7 @@ function decodeGrid() {
     let nonogrid = new Nonogrid(xSize, ySize);
     for (let row of nonogrid.squares) {
         for (let square of row) {
-            square.hasValue = Math.floor(Math.random() * 2) == 0;
+            square.hasValue = Math.floor(Math.random() * 2) === 0;
         }
     }
     genHints(nonogrid);
@@ -79,8 +80,8 @@ function genHints(nonogrid) {
         }
 
         // Handle empty row.
-        if (nonogrid.leftHints[r] == []) {
-            nonogrid.leftHints[r] = [0];
+        if (nonogrid.leftHints[r].length === 0) {
+            nonogrid.leftHints[r].push(0);
         }
     }
 
@@ -91,15 +92,16 @@ function genHints(nonogrid) {
         }
 
         // Handle empty columns.
-        if (nonogrid.topHints[c] == []) {
-            nonogrid.topHints[c] = [0];
+        if (nonogrid.topHints[c].length === 0) {
+            nonogrid.topHints[c].push(0);
         }
     }
 
     // Blank out empty rows.
     for (let [r, row] of nonogrid.squares.entries()) {
         for (let [c, square] of row.entries()) {
-            if (nonogrid.leftHints[r] == [0] || nonogrid.topHints[c] == [0]) {
+            // TODO must be a way to do this more nicely.
+            if (nonogrid.leftHints[r][0] === 0 || nonogrid.topHints[c][0] === 0) {
                 square.denied = true;
             }
         }
@@ -169,8 +171,8 @@ function setHintsForDisplay(nonogrid) {
         }
     }
 
-    console.log(nonogrid.displayLeftHints)
-    console.log(nonogrid.displayTopHints)
+    console.log(`Left Hints: \n${nonogrid.displayLeftHints.join("\n")}`);
+    console.log(`Top Hints: \n${nonogrid.displayTopHints.join("\n")}`);
 }
 
 function drawBoard(nonogrid) {
@@ -193,8 +195,9 @@ function drawBoard(nonogrid) {
         for (let [c, square] of row.entries()) {
             if (square.hasValue) {
                 ctx.fillStyle = VALUE;
-            }
-            else {
+            } else if (square.denied) {
+                ctx.fillStyle = DENIED;
+            } else {
                 ctx.fillStyle = EMPTY;
             }
             ctx.fillRect(x, y, SIZE, SIZE);
@@ -204,7 +207,7 @@ function drawBoard(nonogrid) {
             if (c != nonogrid.width - 1) {
                 x += SQUARE_SPACER;
 
-                if ((c + 1) % 5 == 0) {
+                if ((c + 1) % 5 === 0) {
                     x += METASQUARE_SPACER;
                 }
             }
@@ -215,7 +218,7 @@ function drawBoard(nonogrid) {
         if (r != nonogrid.height - 1) {
             y += SQUARE_SPACER;
 
-            if ((r + 1) % 5 == 0) {
+            if ((r + 1) % 5 === 0) {
                 y += METASQUARE_SPACER;
             }
         }
