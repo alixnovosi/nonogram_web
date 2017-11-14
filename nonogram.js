@@ -5,6 +5,9 @@ let SIZE = 20;
 let SQUARE_SPACER = 2;
 let METASQUARE_SPACER = 10;
 
+// How many spaces before we put a bigger break between squares in.
+let SPACER = 5
+
 let HORIZ_SPACER = "─";
 let VERT_SPACER = "│";
 
@@ -175,23 +178,27 @@ function setHintsForDisplay(nonogrid) {
     console.log(`Top Hints: \n${nonogrid.displayTopHints.join("\n")}`);
 }
 
+function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
+    return (dim * squareSize) +
+        ((dim-1) * spacerSize) +
+        ((Math.floor(dim/SPACER) + 1) * metaSpacerSize) +
+        (dim % SPACER == 0 ? 0 : 1 * metaSpacerSize);
+}
+
 function drawBoard(nonogrid) {
     // Set up canvas.
-    canvas.width = (10 +
-        nonogrid.width * (SIZE + SQUARE_SPACER) - SQUARE_SPACER +
-        (nonogrid.width / 5) * METASQUARE_SPACER);
+    canvas.width = getSquaresHelper(nonogrid.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
+    console.log(canvas.width);
 
-    canvas.height = (10 +
-        nonogrid.height * (SIZE + SQUARE_SPACER) - SQUARE_SPACER +
-        (nonogrid.height / 5) * METASQUARE_SPACER);
+    canvas.height = getSquaresHelper(nonogrid.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
 
     ctx.fillStyle = BACKGROUND;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    let y = 10;
+    let y = METASQUARE_SPACER;
     for (let [r, row] of nonogrid.squares.entries()) {
 
-        let x = 10;
+        let x = METASQUARE_SPACER;
         for (let [c, square] of row.entries()) {
             if (square.hasValue) {
                 ctx.fillStyle = VALUE;
