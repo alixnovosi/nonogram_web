@@ -35,6 +35,112 @@ class Nonogrid {
             }
         }
     }
+
+    genHints() {
+        this.leftHints = [...Array(this.height).keys()].map(() => []);
+        this.topHints = [...Array(this.width).keys()].map(() => []);
+
+        let colCounts = Array(this.width).fill(0);
+        for (let [r, row] of this.squares.entries()) {
+            let rowCount = 0
+
+            for (let [c, square] of row.entries()) {
+
+                if (square.hasValue) {
+                    rowCount += 1;
+                    colCounts[c] += 1;
+                } else {
+                    if (colCounts[c] > 0) {
+                        this.topHints[c].push(colCounts[c]);
+                        colCounts[c] = 0;
+                    }
+
+                    if (rowCount > 0) {
+                        this.leftHints[r].push(rowCount);
+                        rowCount = 0;
+                    }
+                }
+            }
+
+            // Finish row.
+            if (rowCount > 0) {
+                this.leftHints[r].push(rowCount);
+            }
+
+            // Handle empty row.
+            if (this.leftHints[r].length === 0) {
+                this.leftHints[r].push(0);
+            }
+        }
+
+        // Handle last column.
+        for (let c = 0; c < this.width; c++) {
+            if (colCounts[c] > 0) {
+                this.topHints[c].push(colCounts[c]);
+            }
+
+            // Handle empty columns.
+            if (this.topHints[c].length === 0) {
+                this.topHints[c].push(0);
+            }
+        }
+
+        this.blankEmptyRows()
+        setHintsForDisplay(this);
+    }
+
+    blankEmptyRows() {
+        for (let [r, row] of this.squares.entries()) {
+            for (let [c, square] of row.entries()) {
+                // TODO must be a way to do this more nicely.
+                if (this.leftHints[r][0] === 0 || this.topHints[c][0] === 0) {
+                    square.denied = true;
+                }
+            }
+        }
+    }
+
+    drawBoard(canvas, ctx) {
+        canvas.width = getSquaresHelper(this.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
+        canvas.height = getSquaresHelper(this.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
+
+        ctx.fillStyle = BACKGROUND;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let y = METASQUARE_SPACER;
+        for (let [r, row] of this.squares.entries()) {
+
+            let x = METASQUARE_SPACER;
+            for (let [c, square] of row.entries()) {
+                if (square.hasValue) {
+                    ctx.fillStyle = VALUE;
+                } else if (square.denied) {
+                    ctx.fillStyle = DENIED;
+                } else {
+                    ctx.fillStyle = EMPTY;
+                }
+                ctx.fillRect(x, y, SIZE, SIZE);
+
+                x += SIZE;
+                if (c != this.width - 1) {
+                    x += SQUARE_SPACER;
+
+                    if ((c + 1) % 5 === 0) {
+                        x += METASQUARE_SPACER;
+                    }
+                }
+            }
+
+            y += SIZE;
+            if (r != this.height - 1) {
+                y += SQUARE_SPACER;
+
+                if ((r + 1) % 5 === 0) {
+                    y += METASQUARE_SPACER;
+                }
+            }
+        }
+    }
 }
 
 function decodeGrid() {
@@ -46,71 +152,9 @@ function decodeGrid() {
             square.hasValue = Math.floor(Math.random() * 2) === 0;
         }
     }
-    genHints(nonogrid);
+    nonogrid.genHints();
 
     return nonogrid;
-}
-
-function genHints(nonogrid) {
-    nonogrid.leftHints = [...Array(nonogrid.height).keys()].map(() => []);
-    nonogrid.topHints = [...Array(nonogrid.width).keys()].map(() => []);
-
-    let colCounts = Array(nonogrid.width).fill(0);
-    for (let [r, row] of nonogrid.squares.entries()) {
-        let rowCount = 0
-
-        for (let [c, square] of row.entries()) {
-
-            if (square.hasValue) {
-                rowCount += 1;
-                colCounts[c] += 1;
-            } else {
-                if (colCounts[c] > 0) {
-                    nonogrid.topHints[c].push(colCounts[c]);
-                    colCounts[c] = 0;
-                }
-
-                if (rowCount > 0) {
-                    nonogrid.leftHints[r].push(rowCount);
-                    rowCount = 0;
-                }
-            }
-        }
-
-        // Finish row.
-        if (rowCount > 0) {
-            nonogrid.leftHints[r].push(rowCount);
-        }
-
-        // Handle empty row.
-        if (nonogrid.leftHints[r].length === 0) {
-            nonogrid.leftHints[r].push(0);
-        }
-    }
-
-    // Handle last column.
-    for (let c = 0; c < nonogrid.width; c++) {
-        if (colCounts[c] > 0) {
-            nonogrid.topHints[c].push(colCounts[c]);
-        }
-
-        // Handle empty columns.
-        if (nonogrid.topHints[c].length === 0) {
-            nonogrid.topHints[c].push(0);
-        }
-    }
-
-    // Blank out empty rows.
-    for (let [r, row] of nonogrid.squares.entries()) {
-        for (let [c, square] of row.entries()) {
-            // TODO must be a way to do this more nicely.
-            if (nonogrid.leftHints[r][0] === 0 || nonogrid.topHints[c][0] === 0) {
-                square.denied = true;
-            }
-        }
-    }
-
-    setHintsForDisplay(nonogrid);
 }
 
 function setHintsForDisplay(nonogrid) {
@@ -134,7 +178,6 @@ function setHintsForDisplay(nonogrid) {
         }
 
         nonogrid.displayLeftHints.push(newItem);
-
     }
 
     // Set up top hints.
@@ -150,7 +193,6 @@ function setHintsForDisplay(nonogrid) {
             } else {
                 newItem += `${hint}`;
             }
-
         }
 
         if (newItem.length > nonogrid.maxTopHintSize) {
@@ -162,20 +204,19 @@ function setHintsForDisplay(nonogrid) {
 
     // Pad left hints.
     for (let [i, item] of nonogrid.displayLeftHints.entries()){
-        if (item.length < nonogrid.maxLeftHintSize) {
-            nonogrid.displayLeftHints[i] = `${Array(nonogrid.maxLeftHintSize - item.length).join(" ")}${item}`;
-        }
+        nonogrid.displayLeftHints[i] = `${Array(nonogrid.maxLeftHintSize - item.length).join(" ")}${item}`;
     }
 
     // Pad top hints.
-    for (let [i, item] of nonogrid.displayTopHints.entries()){
-        if (item.length < nonogrid.maxTopHintSize) {
-            nonogrid.displayTopHints[i] = `${Array(nonogrid.maxTopHintSize - item.length).join(" ")}${item}`;
-        }
+    for (let item of nonogrid.displayTopHints){
+        item = `${Array(nonogrid.maxTopHintSize - item.length).join(" ")}${item}`;
     }
 
     console.log(`Left Hints: \n${nonogrid.displayLeftHints.join("\n")}`);
     console.log(`Top Hints: \n${nonogrid.displayTopHints.join("\n")}`);
+    for (let i of nonogrid.displayTopHints) {
+        console.log(`${i} ${i.length}`);
+    }
 }
 
 function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
@@ -185,57 +226,10 @@ function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
         (dim % SPACER == 0 ? 0 : 1 * metaSpacerSize);
 }
 
-function drawBoard(nonogrid) {
-    // Set up canvas.
-    canvas.width = getSquaresHelper(nonogrid.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
-    console.log(canvas.width);
-
-    canvas.height = getSquaresHelper(nonogrid.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
-
-    ctx.fillStyle = BACKGROUND;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    let y = METASQUARE_SPACER;
-    for (let [r, row] of nonogrid.squares.entries()) {
-
-        let x = METASQUARE_SPACER;
-        for (let [c, square] of row.entries()) {
-            if (square.hasValue) {
-                ctx.fillStyle = VALUE;
-            } else if (square.denied) {
-                ctx.fillStyle = DENIED;
-            } else {
-                ctx.fillStyle = EMPTY;
-            }
-            ctx.fillRect(x, y, SIZE, SIZE);
-
-            x += SIZE;
-
-            if (c != nonogrid.width - 1) {
-                x += SQUARE_SPACER;
-
-                if ((c + 1) % 5 === 0) {
-                    x += METASQUARE_SPACER;
-                }
-            }
-        }
-
-        y += SIZE;
-
-        if (r != nonogrid.height - 1) {
-            y += SQUARE_SPACER;
-
-            if ((r + 1) % 5 === 0) {
-                y += METASQUARE_SPACER;
-            }
-        }
-    }
-}
-
 window.onload = () => {
     canvas = document.getElementById("nonogram_board");
     ctx = canvas.getContext("2d");
     let nonogrid = decodeGrid();
 
-    drawBoard(nonogrid);
+    nonogrid.drawBoard(canvas, ctx);
 };
