@@ -3,7 +3,7 @@ let ctx;
 
 let SIZE = 20;
 let SQUARE_SPACER = 2;
-let METASQUARE_SPACER = 10;
+let METASQUARE_SPACER = 4;
 
 // How many spaces before we put a bigger break between squares in.
 let SPACER = 5
@@ -11,10 +11,10 @@ let SPACER = 5
 let HORIZ_SPACER = "─";
 let VERT_SPACER = "│";
 
-let BACKGROUND = "#555555";
-let VALUE = "#000000";
-let DENIED = "#DDDDDD"
-let EMPTY = "#FFFFFF";
+let BACKGROUND = "#666677";
+let VALUE = "#000011";
+let DENIED = "#DDDDEE"
+let EMPTY = "#EEEEFF";
 
 class Nonosquare {
     constructor() {
@@ -86,7 +86,7 @@ class Nonogrid {
         }
 
         this.blankEmptyRows()
-        setHintsForDisplay(this);
+        this.setHintsForDisplay();
     }
 
     blankEmptyRows() {
@@ -100,17 +100,106 @@ class Nonogrid {
         }
     }
 
+    setHintsForDisplay() {
+        // Set up left hints.
+        this.maxLeftHintSize = 1;
+        this.displayLeftHints = [];
+        for (let item of this.leftHints) {
+
+            let newItem = "";
+            for (let hint of item) {
+
+                if (hint.toString().length > 1) {
+                    newItem += `${VERT_SPACER}${hint}${VERT_SPACER}`;
+                } else {
+                    newItem += `${hint}`;
+                }
+            }
+
+            if (newItem.length > this.maxLeftHintSize) {
+                this.maxLeftHintSize = newItem.length;
+            }
+
+            this.displayLeftHints.push(newItem);
+        }
+
+        // Set up top hints.
+        this.maxTopHintSize = 1;
+        this.displayTopHints = [];
+        for (let item of this.topHints) {
+
+            let newItem = "";
+            for (let hint of item) {
+
+                if (hint.toString().length > 1) {
+                    newItem += `${HORIZ_SPACER}${hint}${HORIZ_SPACER}`;
+                } else {
+                    newItem += `${hint}`;
+                }
+            }
+
+            if (newItem.length > this.maxTopHintSize) {
+                this.maxTopHintSize = newItem.length;
+            }
+
+            this.displayTopHints.push(newItem);
+        }
+
+        // Pad left hints.
+        for (let [i, item] of this.displayLeftHints.entries()){
+            this.displayLeftHints[i] = item.padStart(this.maxLeftHintSize);
+        }
+
+        // Pad top hints.
+        for (let [i, item] of this.displayTopHints.entries()){
+            this.displayTopHints[i] = item.padStart(this.maxTopHintSize);
+        }
+    }
+
     drawBoard(canvas, ctx) {
-        canvas.width = getSquaresHelper(this.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
-        canvas.height = getSquaresHelper(this.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER);
+        let leftHintWidth = (SIZE + SQUARE_SPACER) * this.displayLeftHints[0].length
+        let topHintHeight = (SIZE + SQUARE_SPACER) * this.displayTopHints[0].length
+
+        canvas.width = leftHintWidth + getSquaresHelper(this.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + leftHintWidth;
+        canvas.height = topHintHeight + getSquaresHelper(this.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + topHintHeight;
 
         ctx.fillStyle = BACKGROUND;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "19px Arial";
 
-        let y = METASQUARE_SPACER;
+        let x = 0;
+        let y = METASQUARE_SPACER + SIZE;
+        // Print top hints.
+        for (let i = 0; i < this.displayTopHints[0].length; i++) {
+
+            // Space out left hints.
+            x = METASQUARE_SPACER + leftHintWidth + SIZE / 2;
+            for (let [hi, item] of this.displayTopHints.map(x => x[i]).entries()) {
+                ctx.fillStyle = VALUE;
+                ctx.fillText(item, x, y);
+                x += SIZE + SQUARE_SPACER;
+
+                if ((hi+1) % 5 == 0) {
+                    x += METASQUARE_SPACER;
+                }
+            }
+
+            y += SIZE * 1.5;
+        }
+
+        // Handle squares and left hints.
         for (let [r, row] of this.squares.entries()) {
 
-            let x = METASQUARE_SPACER;
+            x = SQUARE_SPACER + METASQUARE_SPACER;
+            for (let hint of this.displayLeftHints[r]) {
+                ctx.fillStyle = VALUE;
+                ctx.fillText(hint, x, y);
+                x += SIZE;
+            }
+
+            // Space hints from square.
+            x = METASQUARE_SPACER + leftHintWidth + SIZE / 3;
+
             for (let [c, square] of row.entries()) {
                 if (square.hasValue) {
                     ctx.fillStyle = VALUE;
@@ -119,25 +208,21 @@ class Nonogrid {
                 } else {
                     ctx.fillStyle = EMPTY;
                 }
-                ctx.fillRect(x, y, SIZE, SIZE);
 
-                x += SIZE;
-                if (c != this.width - 1) {
-                    x += SQUARE_SPACER;
+                // TODO figure out why text and squares are drawn differently and why I need this.
+                // maybe also better align python+js code
+                ctx.fillRect(x, y-(SIZE*4/5), SIZE, SIZE);
 
-                    if ((c + 1) % 5 === 0) {
-                        x += METASQUARE_SPACER;
-                    }
+                x += SIZE + SQUARE_SPACER;
+
+                if ((c + 1) % 5 === 0) {
+                    x += METASQUARE_SPACER;
                 }
             }
 
-            y += SIZE;
-            if (r != this.height - 1) {
-                y += SQUARE_SPACER;
-
-                if ((r + 1) % 5 === 0) {
-                    y += METASQUARE_SPACER;
-                }
+            y += SIZE + SQUARE_SPACER;
+            if ((r + 1) % 5 === 0) {
+                y += METASQUARE_SPACER;
             }
         }
     }
@@ -155,68 +240,6 @@ function decodeGrid() {
     nonogrid.genHints();
 
     return nonogrid;
-}
-
-function setHintsForDisplay(nonogrid) {
-    // Set up left hints.
-    nonogrid.maxLeftHintSize = 1;
-    nonogrid.displayLeftHints = [];
-    for (let item of nonogrid.leftHints) {
-
-        let newItem = "";
-        for (let hint of item) {
-
-            if (hint.toString().length > 1) {
-                newItem += `${VERT_SPACER}${hint}${VERT_SPACER}`;
-            } else {
-                newItem += `${hint}`;
-            }
-        }
-
-        if (newItem.length > nonogrid.maxLeftHintSize) {
-            nonogrid.maxLeftHintSize = newItem.length;
-        }
-
-        nonogrid.displayLeftHints.push(newItem);
-    }
-
-    // Set up top hints.
-    nonogrid.maxTopHintSize = 1;
-    nonogrid.displayTopHints = [];
-    for (let item of nonogrid.topHints) {
-
-        let newItem = "";
-        for (let hint of item) {
-
-            if (hint.toString().length > 1) {
-                newItem += `${HORIZ_SPACER}${hint}${HORIZ_SPACER}`;
-            } else {
-                newItem += `${hint}`;
-            }
-        }
-
-        if (newItem.length > nonogrid.maxTopHintSize) {
-            nonogrid.maxTopHintSize = newItem.length;
-        }
-
-        nonogrid.displayTopHints.push(newItem);
-    }
-
-    // Pad left hints.
-    for (let [i, item] of nonogrid.displayLeftHints.entries()){
-        nonogrid.displayLeftHints[i] = `${Array(nonogrid.maxLeftHintSize - item.length).join(" ")}${item}`;
-    }
-
-    // Pad top hints.
-    for (let item of nonogrid.displayTopHints){
-        item = `${Array(nonogrid.maxTopHintSize - item.length).join(" ")}${item}`;
-    }
-
-    console.log(`Left Hints: \n${nonogrid.displayLeftHints.join("\n")}`);
-    console.log(`Top Hints: \n${nonogrid.displayTopHints.join("\n")}`);
-    for (let i of nonogrid.displayTopHints) {
-        console.log(`${i} ${i.length}`);
-    }
 }
 
 function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
