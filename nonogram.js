@@ -1,6 +1,3 @@
-let canvas;
-let ctx;
-
 let SIZE = 20;
 let SQUARE_SPACER = 2;
 let METASQUARE_SPACER = 4;
@@ -290,8 +287,8 @@ function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
 
 window.onload = () => {
     // Set up canvas.
-    canvas = document.getElementById("nonogram_board");
-    ctx = canvas.getContext("2d");
+    let canvas = document.getElementById("nonogram_board");
+    let ctx = canvas.getContext("2d");
 
     // Get URL Params, and then encoded board.
     let params = new URLSearchParams(window.location.search.slice(1));
