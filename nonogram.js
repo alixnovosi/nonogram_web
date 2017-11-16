@@ -15,6 +15,7 @@ let BACKGROUND = "#666677";
 let VALUE = "#000011";
 let DENIED = "#DDDDEE"
 let EMPTY = "#EEEEFF";
+let FONT = "19px Arial";
 
 class Nonosquare {
     constructor() {
@@ -156,7 +157,7 @@ class Nonogrid {
         }
     }
 
-    drawBoard(canvas, ctx) {
+    drawBoard(canvas, ctx, valueColor=EMPTY) {
         let leftHintWidth = (SIZE + SQUARE_SPACER) * this.displayLeftHints[0].length
         let topHintHeight = (SIZE + SQUARE_SPACER) * this.displayTopHints[0].length
 
@@ -165,7 +166,7 @@ class Nonogrid {
 
         ctx.fillStyle = BACKGROUND;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.font = "19px Arial";
+        ctx.font = FONT;
 
         let x = 0;
         let y = METASQUARE_SPACER + SIZE;
@@ -202,7 +203,7 @@ class Nonogrid {
 
             for (let [c, square] of row.entries()) {
                 if (square.hasValue) {
-                    ctx.fillStyle = VALUE;
+                    ctx.fillStyle = valueColor;
                 } else if (square.denied) {
                     ctx.fillStyle = DENIED;
                 } else {
@@ -228,15 +229,53 @@ class Nonogrid {
     }
 }
 
-function decodeGrid() {
-    let xSize = Math.floor(Math.random() * 20) + 5;
-    let ySize = Math.floor(Math.random() * 20) + 5;
-    let nonogrid = new Nonogrid(xSize, ySize);
-    for (let row of nonogrid.squares) {
-        for (let square of row) {
-            square.hasValue = Math.floor(Math.random() * 2) === 0;
-        }
+function decodeNonogram(boardCode) {
+    // base64 -> zip -> string -> object.
+    // also need to un-url-safe-encode in there
+    let decoded = window.atob(boardCode.replace(/_/g, '/').replace(/-/g, '+'));
+    let boardDictEncoded = pako.ungzip(decoded);
+
+    // I hate this quote replacing.
+    let boardDictString = new TextDecoder("utf-8").decode(boardDictEncoded).replace(/'/g, '"');
+
+    let boardDict = JSON.parse(boardDictString);
+    let height = parseInt(boardDict.height, 10);
+    let width = parseInt(boardDict.width, 10);
+    let size = height * width;
+
+    let hexString = boardDict["squares"];
+
+    let nonogrid = new Nonogrid(width, height);
+
+    let unpadded_binary = ""
+    for (let hexit of hexString) {
+        unpadded_binary += parseInt(hexit, 16).toString(2).padStart(4, "0");
     }
+
+    let padded_binary = unpadded_binary.padStart(size, "0");
+
+    let squares = [];
+    let row = [];
+    // python would let me enumerate over the string...
+    for (let c = 0; c < padded_binary.length; c++) {
+        let char = padded_binary[c];
+
+        if (c % width == 0 && c != 0) {
+            squares.push(row);
+            row = [];
+        }
+
+        let square = new Nonosquare();
+        if (char == '1') {
+            square.hasValue = true;
+        }
+
+        row.push(square);
+    }
+
+    squares.push(row);
+
+    nonogrid.squares = squares;
     nonogrid.genHints();
 
     return nonogrid;
@@ -250,9 +289,25 @@ function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
 }
 
 window.onload = () => {
+    // Set up canvas.
     canvas = document.getElementById("nonogram_board");
     ctx = canvas.getContext("2d");
-    let nonogrid = decodeGrid();
 
-    nonogrid.drawBoard(canvas, ctx);
+    // Get URL Params, and then encoded board.
+    let params = new URLSearchParams(window.location.search.slice(1));
+    let solved = params.get("solved");
+    let encodedBoard = params.get("board");
+
+    if (encodedBoard == null) {
+        console.log("sorry");
+    } else {
+
+        let nonogrid = decodeNonogram(encodedBoard);
+
+        if (solved && solved != "0" && solved != "false") {
+            nonogrid.drawBoard(canvas, ctx, VALUE);
+        } else {
+            nonogrid.drawBoard(canvas, ctx);
+        }
+    }
 };
