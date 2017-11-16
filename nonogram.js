@@ -13,7 +13,7 @@ let VERT_SPACER = "│";
 
 let BACKGROUND = "#666677";
 let VALUE = "#000011";
-let DENIED = "#DDDDEE"
+let DENIED = "#9999AA"
 let EMPTY = "#EEEEFF";
 let FONT = "19px Arial";
 
