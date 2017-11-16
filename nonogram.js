@@ -245,8 +245,15 @@ function decodeNonogram(boardCode) {
     let nonogrid = new Nonogrid(width, height);
 
     let unpadded_binary = ""
-    for (let hexit of hexString) {
-        unpadded_binary += parseInt(hexit, 16).toString(2).padStart(4, "0");
+    for (let h = 0; h < hexString.length; h++) {
+        let hexit = hexString[h];
+        // Make sure not to put extra padding in from the first digit - padding step below will take it.
+        let bit_string = parseInt(hexit, 16).toString(2);
+        if (h > 0) {
+            unpadded_binary += bit_string.padStart(4, "0");
+        } else {
+            unpadded_binary += bit_string;
+        }
     }
 
     let padded_binary = unpadded_binary.padStart(size, "0");
