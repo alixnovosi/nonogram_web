@@ -1,18 +1,21 @@
-let SIZE = 20;
-let SQUARE_SPACER = 2;
-let METASQUARE_SPACER = 4;
+// Sizes of squares, square dividers, every-SPACER-spaces divider.
+const SIZE = 20;
+const SQUARE_SPACER = 2;
+const METASQUARE_SPACER = 4;
 
 // How many spaces before we put a bigger break between squares in.
-let SPACER = 5
+const SPACER = 5
 
-let HORIZ_SPACER = "─";
-let VERT_SPACER = "│";
+const HORIZ_SPACER = "─";
+const VERT_SPACER = "│";
 
-let BACKGROUND = "#666677";
-let VALUE = "#000011";
-let DENIED = "#9999AA"
-let EMPTY = "#EEEEFF";
-let FONT = "19px Arial";
+// Styles.
+const BACKGROUND = "#666677";
+const VALUE = "#000011";
+const DENIED = "#9999AA"
+const EMPTY = "#EEEEFF";
+
+const FONT = "19px Arial";
 
 class Nonosquare {
     constructor() {
@@ -293,11 +296,9 @@ function getSquaresHelper(dim, squareSize=1, spacerSize=1, metaSpacerSize=1) {
 }
 
 window.onload = () => {
-    // Set up canvas.
     let canvas = document.getElementById("nonogram_board");
     let ctx = canvas.getContext("2d");
 
-    // Get URL Params, and then encoded board.
     let params = new URLSearchParams(window.location.search.slice(1));
     let solved = params.get("solved");
     let encodedBoard = params.get("board");
