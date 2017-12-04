@@ -4,7 +4,7 @@ const SQUARE_SPACER = 2;
 const METASQUARE_SPACER = 4;
 
 // How many spaces before we put a bigger break between squares in.
-const SPACER = 5
+const SPACER = 5;
 
 const HORIZ_SPACER = "─";
 const VERT_SPACER = "│";
@@ -12,7 +12,7 @@ const VERT_SPACER = "│";
 // Styles.
 const BACKGROUND = "#666677";
 const VALUE = "#000011";
-const DENIED = "#9999AA"
+const DENIED = "#9999AA";
 const EMPTY = "#EEEEFF";
 
 const FONT = "19px Arial";
@@ -43,7 +43,7 @@ class Nonogrid {
 
         let colCounts = Array(this.width).fill(0);
         for (let [r, row] of this.squares.entries()) {
-            let rowCount = 0
+            let rowCount = 0;
 
             for (let [c, square] of row.entries()) {
 
@@ -86,7 +86,7 @@ class Nonogrid {
             }
         }
 
-        this.blankEmptyRows()
+        this.blankEmptyRows();
         this.setHintsForDisplay();
     }
 
@@ -158,8 +158,8 @@ class Nonogrid {
     }
 
     drawBoard(canvas, ctx, valueColor=EMPTY) {
-        let leftHintWidth = (SIZE + SQUARE_SPACER) * this.displayLeftHints[0].length
-        let topHintHeight = (SIZE + SQUARE_SPACER) * this.displayTopHints[0].length
+        let leftHintWidth = (SIZE + SQUARE_SPACER) * this.displayLeftHints[0].length;
+        let topHintHeight = (SIZE + SQUARE_SPACER) * this.displayTopHints[0].length;
 
         canvas.width = leftHintWidth + getSquaresHelper(this.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + leftHintWidth;
         canvas.height = topHintHeight + getSquaresHelper(this.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + topHintHeight;
@@ -232,11 +232,11 @@ class Nonogrid {
 function decodeNonogram(boardCode) {
     // base64 -> zip -> string -> object.
     // also need to un-url-safe-encode in there
-    let decoded = window.atob(boardCode.replace(/_/g, '/').replace(/-/g, '+'));
+    let decoded = window.atob(boardCode.replace(/_/g, "/").replace(/-/g, "+"));
     let boardDictEncoded = pako.ungzip(decoded);
 
     // I hate this quote replacing.
-    let boardDictString = new TextDecoder("utf-8").decode(boardDictEncoded).replace(/'/g, '"');
+    let boardDictString = new TextDecoder("utf-8").decode(boardDictEncoded).replace(/'/g, "\"");
 
     let boardDict = JSON.parse(boardDictString);
     let height = parseInt(boardDict.height, 10);
@@ -247,7 +247,7 @@ function decodeNonogram(boardCode) {
 
     let nonogrid = new Nonogrid(width, height);
 
-    let unpadded_binary = ""
+    let unpadded_binary = "";
     for (let h = 0; h < hexString.length; h++) {
         let hexit = hexString[h];
         // Make sure not to put extra padding in from the first digit - padding step below will take it.
@@ -273,7 +273,7 @@ function decodeNonogram(boardCode) {
         }
 
         let square = new Nonosquare();
-        if (char == '1') {
+        if (char == "1") {
             square.hasValue = true;
         }
 
