@@ -1,3 +1,11 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// AUTHOR:  Andrew Michaud - andrewmichaud.com                                                    //
+// FILE:    nonogram.js                                                                           //
+// PURPOSE: Renderer for nonogram puzzles.                                                        //
+// UPDATED: 2018-03-21                                                                            //
+// LICENSE: ISC                                                                                   //
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Sizes of squares, square dividers, every-SPACER-spaces divider.
 const SIZE = 20;
 const SQUARE_SPACER = 2;
