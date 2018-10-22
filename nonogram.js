@@ -7,23 +7,24 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Sizes of squares, square dividers, every-SPACER-spaces divider.
-const SIZE = 20;
-const SQUARE_SPACER = 2;
-const METASQUARE_SPACER = 4;
+const SIZE = 40;
+const SQUARE_SPACER = 5;
+const METASQUARE_SPACER = 8;
 
 // How many spaces before we put a bigger break between squares in.
-const SPACER = 5;
+const SPACER = 10;
 
 const HORIZ_SPACER = "─";
 const VERT_SPACER = "│";
 
 // Styles.
-const BACKGROUND = "#666677";
-const VALUE = "#000011";
-const DENIED = "#9999AA";
-const EMPTY = "#EEEEFF";
+const BACKGROUND = "#333344";
+const VALUE = "#666677";
+const DENIED = "#BCBCCD";
+const EMPTY = "#EFEFFF";
 
-const FONT = "19px Arial";
+const FONT = "bold 40px Arial, sans-serif";
+const FONT_COLOR = DENIED;
 
 class Nonosquare {
     constructor() {
@@ -281,9 +282,9 @@ class Nonogrid {
         let topHintHeight = (SIZE + SQUARE_SPACER) * this.displayTopHints[0].length;
 
         canvas.width = leftHintWidth +
-            getSquaresHelper(this.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + leftHintWidth;
+            getSquaresHelper(this.width, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + (leftHintWidth/3);
         canvas.height = topHintHeight +
-            getSquaresHelper(this.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + topHintHeight;
+            getSquaresHelper(this.height, SIZE, SQUARE_SPACER, METASQUARE_SPACER) + (topHintHeight/3);
 
         ctx.fillStyle = BACKGROUND;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -297,7 +298,7 @@ class Nonogrid {
             // Space out left hints.
             x = METASQUARE_SPACER + leftHintWidth + SIZE / 2;
             for (let [hi, item] of this.displayTopHints.map(x => x[i]).entries()) {
-                ctx.fillStyle = VALUE;
+                ctx.fillStyle = FONT_COLOR;
                 ctx.fillText(item, x, y);
                 x += SIZE + SQUARE_SPACER;
 
@@ -306,7 +307,7 @@ class Nonogrid {
                 }
             }
 
-            y += SIZE * 1.5;
+            y += SIZE;
         }
 
         // Handle squares and left hints.
@@ -314,7 +315,7 @@ class Nonogrid {
 
             x = SQUARE_SPACER + METASQUARE_SPACER;
             for (let hint of this.displayLeftHints[r]) {
-                ctx.fillStyle = VALUE;
+                ctx.fillStyle = FONT_COLOR;
                 ctx.fillText(hint, x, y);
                 x += SIZE;
             }
