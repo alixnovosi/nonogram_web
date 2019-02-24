@@ -13,16 +13,6 @@ const SQUARE_VALUES = Object.freeze({
 
 const SQUARE_VALUES_MAP = [SQUARE_VALUES.EMPTY, SQUARE_VALUES.FILLED, SQUARE_VALUES.CROSSED_OFF];
 
-class Square extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            value: props.value,
-        };
-    }
-}
-
 function SquareButton(props) {
     const value = SQUARE_VALUES_MAP[props.value];
     const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? 'X' : null;
@@ -79,6 +69,11 @@ class Game extends React.Component {
             values: props.values,
             stepNumber: 0,
         };
+
+        let hints = this.genHints();
+
+        this.state.leftHints = hints.leftHints;
+        this.state.topHints = hints.topHints;
     }
 
     handleClick(i) {
@@ -105,6 +100,63 @@ class Game extends React.Component {
         this.setState({
             stepNumber: step,
         });
+    }
+
+    genHints() {
+        let leftHints = [...Array(this.state.height).keys()].map(() => []);
+        let topHints = [...Array(this.state.width).keys()].map(() => []);
+
+        let colCounts = Array(this.state.width).fill(0);
+        for (let [r, row] of this.state.values.entries()) {
+            let rowCount = 0;
+
+            for (let [c, square] of row.entries()) {
+
+                if (square) {
+                    rowCount += 1;
+                    colCounts[c] += 1;
+                } else {
+                    if (colCounts[c] > 0) {
+                        topHints[c].push(colCounts[c]);
+                        colCounts[c] = 0;
+                    }
+
+                    if (rowCount > 0) {
+                        leftHints[r].push(rowCount);
+                        rowCount = 0;
+                    }
+                }
+            }
+
+            // Finish row.
+            if (rowCount > 0) {
+                leftHints[r].push(rowCount);
+            }
+
+            // Handle empty row.
+            if (leftHints[r].length === 0) {
+                leftHints[r].push(0);
+            }
+        }
+
+        // Handle last column.
+        for (let c = 0; c < this.state.width; c++) {
+            if (colCounts[c] > 0) {
+                topHints[c].push(colCounts[c]);
+            }
+
+            // Handle empty columns.
+            if (topHints[c].length === 0) {
+                topHints[c].push(0);
+            }
+        }
+
+        // this.blankEmptyRows();
+        // this.setHintsForDisplay();
+        console.log(leftHints);
+        console.log(`topHints ${topHints}`);
+
+        return {topHints: topHints, leftHints: leftHints};
     }
 
     render() {
@@ -204,14 +256,7 @@ function decode_squares(code) {
             row = [];
         }
 
-        let square;
-        if (char === "1") {
-            square = new Square(SQUARE_VALUES.FILLED);
-        } else {
-            square = new Square(SQUARE_VALUES.EMPTY);
-        }
-
-        row.push(square);
+        row.push(char === "1");
     }
 
     squares.push(row);
