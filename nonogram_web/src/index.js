@@ -18,22 +18,35 @@ class Square extends React.Component {
         const value = SQUARE_VALUES_MAP[this.props.displayValue];
         const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
         const button_class = value === SQUARE_VALUES.FILLED ? "filled_square" : "square";
-        return (
-            <button
-                className={button_class}
-                onClick={this.props.onClick}
-                disabled={this.props.disabled}>
+        // TODO dry
+        if (this.props.blocked) {
+            return (
+                <button
+                    className={button_class}
+                    onClick={this.props.onClick}
+                    disabled>
 
-                {button_contents}
-            </button>
-        );
+                    {button_contents}
+                </button>
+            );
+        } else {
+            return (
+                <button
+                    className={button_class}
+                    onClick={this.props.onClick}>
+
+                    {button_contents}
+                </button>
+            );
+
+        }
     }
 }
 
 Square.propTypes = {
     filled: PropTypes.bool.isRequired,
     displayValue: PropTypes.number.isRequired,
-    disabled: PropTypes.bool.isRequired,
+    blocked: PropTypes.bool.isRequired,
     onClick: PropTypes.func.isRequired
 };
 
@@ -79,7 +92,7 @@ class Game extends React.Component {
         this.state.leftHints = newState.leftHints;
         this.state.topHints = newState.topHints;
 
-        newState = this.initializeSquares();
+        newState = this.setBlockedSections();
         this.state.squares = newState.squares;
     }
 
@@ -89,14 +102,12 @@ class Game extends React.Component {
         let oldSquare = squares[r][c];
         let newDisplayValue = (oldSquare.props.displayValue + 1) % SQUARE_VALUES_MAP.length;
 
-        squares[r][c] =
-            <Square
-                key={oldSquare.key}
-                filled={oldSquare.props.filled}
-                displayValue={newDisplayValue}
-                disabled={oldSquare.props.disabled}
-                onClick={oldSquare.props.onClick}
-            />;
+        squares[r][c] = React.cloneElement(
+            oldSquare,
+            {
+                displayValue: newDisplayValue,
+            }
+        );
 
         this.setState({
             squares: squares,
@@ -108,7 +119,25 @@ class Game extends React.Component {
 
         for (let r = 0; r < this.state.height; r++) {
             for (let c = 0; c < this.state.width; c++) {
-                squares[r][c].resetDisplay();
+                let oldSquare = squares[r][c];
+                if (oldSquare.props.blocked) {
+                    squares[r][c] = React.cloneElement(
+                        oldSquare,
+                        {
+                            displayValue: 2,
+                            filled: false,
+                        }
+                    );
+                } else {
+                    squares[r][c] = React.cloneElement(
+                        oldSquare,
+                        {
+                            displayValue: 0,
+                            filled: false,
+                        }
+                    );
+
+                }
             }
         }
 
@@ -127,7 +156,7 @@ class Game extends React.Component {
 
             for (let [c, square] of row.entries()) {
 
-                if (square) {
+                if (square.props.filled) {
                     rowCount += 1;
                     colCounts[c] += 1;
                 } else {
@@ -173,16 +202,20 @@ class Game extends React.Component {
         };
     }
 
-    // set disabled rows.
-    initializeSquares() {
-        console.log(this.state.leftHints);
+    setBlockedSections() {
         let squares = this.state.squares.slice();
         for (let r = 0; r < this.state.height; r++) {
             for (let c = 0; c < this.state.width; c++) {
                 // TODO must be a way to do this more nicely.
                 if (this.state.leftHints[r][0] === 0 || this.state.topHints[c][0] === 0) {
-                    console.log("hei");
-                    squares[r][c].disabled = true;
+                    let oldSquare = squares[r][c];
+                    squares[r][c] = React.cloneElement(
+                        oldSquare,
+                        {
+                            blocked: true,
+                            displayValue: 2,
+                        }
+                    );
                 }
             }
         }
@@ -244,7 +277,7 @@ class Game extends React.Component {
                 key={i}
                 filled={char === "1"}
                 displayValue={0}
-                disabled={false}
+                blocked={false}
                 onClick={() => this.handleClick(r, c)}
             />;
             row.push(square);
