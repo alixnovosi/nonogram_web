@@ -1,47 +1,49 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
+import React from "react";
+import ReactDOM from "react-dom";
+import pako from "pako";
+import PropTypes from "prop-types";
 
-import './index.css';
-
-var pako = require('pako');
+import "./index.css";
 
 const SQUARE_VALUES = Object.freeze({
-    EMPTY: Symbol('Empty'),
-    FILLED: Symbol('Filled'),
-    CROSSED_OFF: Symbol('CrossedOff'),
+    EMPTY: Symbol("Empty"),
+    FILLED: Symbol("Filled"),
+    CROSSED_OFF: Symbol("CrossedOff"),
 });
 
 const SQUARE_VALUES_MAP = [SQUARE_VALUES.EMPTY, SQUARE_VALUES.FILLED, SQUARE_VALUES.CROSSED_OFF];
 
-function SquareButton(props) {
-    const value = SQUARE_VALUES_MAP[props.value];
-    const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? 'X' : null;
-    const button_class = value === SQUARE_VALUES.FILLED ? 'filled_square' : 'square';
-    return (
-        <button className={button_class} onClick={props.onClick} >{button_contents}</button>
-    );
-}
-
-class Board extends React.Component {
-    renderSquare(i) {
+class Square extends React.Component {
+    render() {
+        const value = SQUARE_VALUES_MAP[this.props.displayValue];
+        const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
+        const button_class = value === SQUARE_VALUES.FILLED ? "filled_square" : "square";
         return (
-            <SquareButton
-                value={this.props.squares[i]}
-                onClick={() => this.props.onClick(i)}
-            />
+            <button
+                className={button_class}
+                onClick={this.props.onClick}
+                disabled={this.props.disabled}>
+
+                {button_contents}
+            </button>
         );
     }
+}
 
+Square.propTypes = {
+    filled: PropTypes.bool.isRequired,
+    displayValue: PropTypes.number.isRequired,
+    disabled: PropTypes.bool.isRequired,
+    onClick: PropTypes.func.isRequired
+};
+
+class Board extends React.Component {
     render() {
-        const height = this.props.height;
-        const width = this.props.width;
-        const size = height * width;
-
         let board = [];
-        for (var i = 0; i < size; i += width) {
+        for (var r = 0; r < this.props.squares.length; r++) {
             let row = [];
-            for (var j = i; j < i + width; j++) {
-                row.push(this.renderSquare(j));
+            for (var c = 0; c < this.props.width; c++) {
+                row.push(this.props.squares[r][c]);
             }
 
             board.push(<div>{row}</div>);
@@ -51,54 +53,67 @@ class Board extends React.Component {
     }
 }
 
+Board.propTypes = {
+    height: PropTypes.number.isRequired,
+    width: PropTypes.number,
+    squares: PropTypes.array.isRequired,
+};
+
 class Game extends React.Component {
     constructor(props) {
         super(props);
 
-        let size = props.height * props.width;
-
-        // TODO it's weird that the square buttons are stored as a 1D array,
-        // but the actual values are a 2D array.
-        // refactor.
         this.state = {
-            height: props.height,
-            width: props.width,
-            history: [{
-                squares: Array(size).fill(0),
-            }],
-            values: props.values,
-            stepNumber: 0,
+            code: props.code,
         };
 
-        let hints = this.genHints();
+        let newState;
+        newState = this.decodeSquares();
+        this.state.height = newState.height;
+        this.state.width = newState.width;
+        this.state.squares = newState.squares;
 
-        this.state.leftHints = hints.leftHints;
-        this.state.topHints = hints.topHints;
+        // generate hints,
+        // and then force blank rows based on those hints.
+        newState = this.genHints();
+        this.state.leftHints = newState.leftHints;
+        this.state.topHints = newState.topHints;
+
+        newState = this.initializeSquares();
+        this.state.squares = newState.squares;
     }
 
-    handleClick(i) {
-        const history = this.state.history.slice(0, this.state.stepNumber + 1);
-        const current = history[history.length - 1];
-        const squares = current.squares.slice();
+    handleClick(r, c) {
+        let squares = this.state.squares.slice();
 
-        squares[i] = (squares[i] + 1) % SQUARE_VALUES_MAP.length;
+        let oldSquare = squares[r][c];
+        let newDisplayValue = (oldSquare.props.displayValue + 1) % SQUARE_VALUES_MAP.length;
+
+        squares[r][c] =
+            <Square
+                key={oldSquare.key}
+                filled={oldSquare.props.filled}
+                displayValue={newDisplayValue}
+                disabled={oldSquare.props.disabled}
+                onClick={oldSquare.props.onClick}
+            />;
+
         this.setState({
-            history: history.concat([{
-                squares: squares,
-            }]),
-            stepNumber: history.length,
+            squares: squares,
         });
     }
 
     reset() {
-        this.setState({
-            stepNumber: 0,
-        });
-    }
+        let squares = this.state.squares.slice();
 
-    jumpTo(step) {
+        for (let r = 0; r < this.state.height; r++) {
+            for (let c = 0; c < this.state.width; c++) {
+                squares[r][c].resetDisplay();
+            }
+        }
+
         this.setState({
-            stepNumber: step,
+            squares: squares,
         });
     }
 
@@ -107,7 +122,7 @@ class Game extends React.Component {
         let topHints = [...Array(this.state.width).keys()].map(() => []);
 
         let colCounts = Array(this.state.width).fill(0);
-        for (let [r, row] of this.state.values.entries()) {
+        for (let [r, row] of this.state.squares.entries()) {
             let rowCount = 0;
 
             for (let [c, square] of row.entries()) {
@@ -151,32 +166,100 @@ class Game extends React.Component {
             }
         }
 
-        // this.blankEmptyRows();
         // this.setHintsForDisplay();
-        console.log(leftHints);
-        console.log(`topHints ${topHints}`);
+        return {
+            topHints: topHints,
+            leftHints: leftHints,
+        };
+    }
 
-        return {topHints: topHints, leftHints: leftHints};
+    // set disabled rows.
+    initializeSquares() {
+        console.log(this.state.leftHints);
+        let squares = this.state.squares.slice();
+        for (let r = 0; r < this.state.height; r++) {
+            for (let c = 0; c < this.state.width; c++) {
+                // TODO must be a way to do this more nicely.
+                if (this.state.leftHints[r][0] === 0 || this.state.topHints[c][0] === 0) {
+                    console.log("hei");
+                    squares[r][c].disabled = true;
+                }
+            }
+        }
+
+        return {
+            squares: squares,
+        };
+    }
+
+    decodeSquares() {
+        // base64 -> zip -> string -> object.
+        // also need to un-url-safe-encode in there
+        let base64BoardDict = this.state.code.replace(/_/g, "/").replace(/-/g, "+");
+        let boardDictZipped = window.atob(base64BoardDict);
+        let boardDictArray = pako.ungzip(boardDictZipped);
+
+        // I hate this quote replacing.
+        let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
+
+        let boardDict = JSON.parse(boardDictString);
+        let height = parseInt(boardDict.height, 10);
+        let width = parseInt(boardDict.width, 10);
+
+        let size = height * width;
+
+        let hexString = boardDict.squares;
+
+        let unpadded_binary = "";
+        for (let h = 0; h < hexString.length; h++) {
+            let hexit = hexString[h];
+            // Make sure not to put extra padding in from the first digit - padding step below
+            // will take it.
+            let bit_string = parseInt(hexit, 16).toString(2);
+            if (h > 0) {
+                unpadded_binary += bit_string.padStart(4, "0");
+            } else {
+                unpadded_binary += bit_string;
+            }
+        }
+
+        let padded_binary = unpadded_binary.padStart(size, "0");
+
+        let squares = [];
+        let row = [];
+        // python would let me enumerate over the string...
+        for (let i = 0; i < padded_binary.length; i++) {
+            let char = padded_binary[i];
+
+            if (i % width === 0 && i !== 0) {
+                squares.push(row);
+                row = [];
+            }
+
+            // convert 1D array index i into 2D indices r and c for convenience.
+            let r = Math.floor(i / width);
+            let c = i % width;
+
+            let square = <Square
+                key={i}
+                filled={char === "1"}
+                displayValue={0}
+                disabled={false}
+                onClick={() => this.handleClick(r, c)}
+            />;
+            row.push(square);
+        }
+
+        squares.push(row);
+
+        return {
+            height: height,
+            width: width,
+            squares: squares,
+        };
     }
 
     render() {
-        const history = this.state.history;
-        const current = history[this.state.stepNumber];
-
-        const moves = history.map((step, move) => {
-            const desc = move ?
-                `Go to move #${move}` :
-                'Go to game start';
-
-            return (
-                <li key={move}>
-                    <button onClick={() => this.jumpTo(move)}>
-                        {desc}
-                    </button>
-                </li>
-            );
-        });
-
         const reset =
             <button onClick={() => this.reset()}>
                 Reset
@@ -188,8 +271,7 @@ class Game extends React.Component {
                     <Board
                         height={this.state.height}
                         width={this.state.width}
-                        squares={current.squares}
-                        onClick={(i) => this.handleClick(i)}
+                        squares={this.state.squares}
                     />
                 </div>
                 <div className="game-info">
@@ -200,68 +282,20 @@ class Game extends React.Component {
     }
 }
 
+Game.propTypes = {
+    code: PropTypes.string.isRequired,
+    height: PropTypes.number,
+    width: PropTypes.number,
+    squares: PropTypes.array,
+};
+
 // ========================================
 
-let test_board_code = "eJyrVs9IzUzPKFG3UrDQUVAvz0wpyQCyDY2AnOLC0sSi1GIgVz051cAw1cDALNXC3DwlOS0tJS0tLTU5Rb0WAG0IE5M";
+let test_board_code = "eJyrVs9IzUzPKFG3UjDVUVAvz0wpyQCyDU2AnOLC0sSi1GIgV93Q2DjNIDnN0NA81cQ8xSLJ2FK9FgAH6xDX";
 
-let test_board = decode_squares(test_board_code);
+let test_board = <Game code={test_board_code}/>;
 
 ReactDOM.render(
     test_board,
     document.getElementById("root")
 );
-
-function decode_squares(code) {
-    // base64 -> zip -> string -> object.
-    // also need to un-url-safe-encode in there
-    let base64BoardDict = code.replace(/_/g, "/").replace(/-/g, "+");
-
-    let boardDictZipped = window.atob(base64BoardDict);
-
-    let boardDictArray = pako.ungzip(boardDictZipped);
-
-    // I hate this quote replacing.
-    let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
-
-    let boardDict = JSON.parse(boardDictString);
-    let height = parseInt(boardDict.height, 10);
-    let width = parseInt(boardDict.width, 10);
-    let size = height * width;
-
-    let hexString = boardDict["squares"];
-
-    let unpadded_binary = "";
-    for (let h = 0; h < hexString.length; h++) {
-        let hexit = hexString[h];
-        // Make sure not to put extra padding in from the first digit - padding step below
-        // will take it.
-        let bit_string = parseInt(hexit, 16).toString(2);
-        if (h > 0) {
-            unpadded_binary += bit_string.padStart(4, "0");
-        } else {
-            unpadded_binary += bit_string;
-        }
-    }
-
-    let padded_binary = unpadded_binary.padStart(size, "0");
-
-    let squares = [];
-    let row = [];
-    // python would let me enumerate over the string...
-    for (let c = 0; c < padded_binary.length; c++) {
-        let char = padded_binary[c];
-
-        if (c % width === 0 && c !== 0) {
-            squares.push(row);
-            row = [];
-        }
-
-        row.push(char === "1");
-    }
-
-    squares.push(row);
-
-    return (
-        <Game width={width} height={height} values={squares}/>
-    );
-};
