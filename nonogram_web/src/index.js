@@ -11,11 +11,14 @@ const SQUARE_VALUES = Object.freeze({
     CROSSED_OFF: Symbol("CrossedOff"),
 });
 
-const SQUARE_VALUES_MAP = [SQUARE_VALUES.EMPTY, SQUARE_VALUES.FILLED, SQUARE_VALUES.CROSSED_OFF];
+const SQUARE_VALUES_LIST = [
+    SQUARE_VALUES.EMPTY,
+    SQUARE_VALUES.FILLED,
+    SQUARE_VALUES.CROSSED_OFF];
 
 class Square extends React.Component {
     render() {
-        const value = SQUARE_VALUES_MAP[this.props.displayValue];
+        const value = this.props.displayValue;
         const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
         const button_class = value === SQUARE_VALUES.FILLED ? "filled_square" : "square";
         // TODO dry
@@ -38,31 +41,25 @@ class Square extends React.Component {
                     {button_contents}
                 </button>
             );
-
         }
     }
 }
 
 Square.propTypes = {
+    displayValue: PropTypes.any.isRequired,
     filled: PropTypes.bool.isRequired,
-    displayValue: PropTypes.number.isRequired,
     blocked: PropTypes.bool.isRequired,
     onClick: PropTypes.func.isRequired
 };
 
 class Board extends React.Component {
     render() {
-        let board = [];
-        for (var r = 0; r < this.props.squares.length; r++) {
-            let row = [];
-            for (var c = 0; c < this.props.width; c++) {
-                row.push(this.props.squares[r][c]);
-            }
-
-            board.push(<div>{row}</div>);
+        let output = [];
+        for (let row of this.props.squares) {
+            output.push(<div>{row}</div>);
         }
 
-        return <div>{board}</div>;
+        return <div>{output}</div>;
     }
 }
 
@@ -80,6 +77,7 @@ class Game extends React.Component {
             code: props.code,
         };
 
+        // TODO find best practices for this nonsense I'm doing.
         let newState;
         newState = this.decodeSquares();
         this.state.height = newState.height;
@@ -100,12 +98,13 @@ class Game extends React.Component {
         let squares = this.state.squares.slice();
 
         let oldSquare = squares[r][c];
-        let newDisplayValue = (oldSquare.props.displayValue + 1) % SQUARE_VALUES_MAP.length;
+        let newDisplayIndex = (SQUARE_VALUES_LIST.indexOf(oldSquare.props.displayValue) + 1) %
+            SQUARE_VALUES_LIST.length;
 
         squares[r][c] = React.cloneElement(
             oldSquare,
             {
-                displayValue: newDisplayValue,
+                displayValue: SQUARE_VALUES_LIST[newDisplayIndex],
             }
         );
 
@@ -124,7 +123,7 @@ class Game extends React.Component {
                     squares[r][c] = React.cloneElement(
                         oldSquare,
                         {
-                            displayValue: 2,
+                            displayValue: SQUARE_VALUES.CROSSED_OFF,
                             filled: false,
                         }
                     );
@@ -132,7 +131,7 @@ class Game extends React.Component {
                     squares[r][c] = React.cloneElement(
                         oldSquare,
                         {
-                            displayValue: 0,
+                            displayValue: SQUARE_VALUES.EMPTY,
                             filled: false,
                         }
                     );
@@ -213,7 +212,7 @@ class Game extends React.Component {
                         oldSquare,
                         {
                             blocked: true,
-                            displayValue: 2,
+                            displayValue: SQUARE_VALUES.CROSSED_OFF,
                         }
                     );
                 }
@@ -276,7 +275,7 @@ class Game extends React.Component {
             let square = <Square
                 key={i}
                 filled={char === "1"}
-                displayValue={0}
+                displayValue={SQUARE_VALUES.EMPTY}
                 blocked={false}
                 onClick={() => this.handleClick(r, c)}
             />;
