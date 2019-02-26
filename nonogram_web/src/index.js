@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import pako from "pako";
+import queryString from "query-string";
 import PropTypes from "prop-types";
 
 import "./index.css";
@@ -102,6 +103,24 @@ class Game extends React.Component {
 
         this.setState({
             squares: squares,
+        });
+    }
+
+    validate() {
+        for (let row of this.state.squares) {
+            for (let square of row) {
+                if ((square.props.filled && square.props.displayValue === SQUARE_VALUES.EMPTY) ||
+                    (!square.props.filled && square.props.displayValue === SQUARE_VALUES.FILLED)) {
+                    this.setState({
+                        validateResult: "Solution is not correct!",
+                    });
+                    return;
+                }
+            }
+        }
+
+        this.setState({
+            validateResult: "Solution is correct!",
         });
     }
 
@@ -355,6 +374,11 @@ class Game extends React.Component {
                 Reset
             </button>;
 
+        const validate =
+            <button onClick={() => this.validate()}>
+                Validate
+            </button>;
+
         // combine hints and squares into a single array,
         // so that we can cleanly give each row keys.
         let rowIndex = 0;
@@ -424,6 +448,8 @@ class Game extends React.Component {
                 </div>
                 <div className="game-info">
                     <div>{reset}</div>
+                    <div>{validate}</div>
+                    <div>{this.state.validateResult}</div>
                 </div>
             </div>
         );
@@ -439,11 +465,12 @@ Game.propTypes = {
 
 // ========================================
 
-let test_board_code = "eJyrVs9IzUzPKFG3UjDVUVAvz0wpyQCyDU2AnOLC0sSi1GIgV93Q2DjNIDnN0NA81cQ8xSLJ2FK9FgAH6xDX";
+let params = queryString.parse(window.location.search);
+let board_code = params.board;
 
-let test_board = <Game code={test_board_code}/>;
+let board = <Game code={board_code}/>;
 
 ReactDOM.render(
-    test_board,
+    board,
     document.getElementById("root")
 );
