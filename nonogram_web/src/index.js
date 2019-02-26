@@ -21,7 +21,15 @@ class Square extends React.Component {
     render() {
         const value = this.props.displayValue;
         const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
-        const button_class = value === SQUARE_VALUES.FILLED ? "filled_square" : "square";
+        let button_class;
+        if (value === SQUARE_VALUES.FILLED) {
+            button_class = "filled_square";
+        } else if (value === SQUARE_VALUES.EMPTY) {
+            button_class = "empty_square";
+        } else {
+            button_class = "blocked_square";
+        }
+
         // TODO dry
         if (this.props.blocked) {
             return (
@@ -75,6 +83,8 @@ class Game extends React.Component {
         let hints = this.genHints();
         this.state.leftHints = hints.leftHints;
         this.state.topHints = hints.topHints;
+        this.state.maxTopHintSize = hints.maxTopHintSize;
+        this.state.maxLeftHintSize = hints.maxLeftHintSize;
 
         newState = this.setBlockedSections();
         this.state.squares = newState.squares;
@@ -83,8 +93,6 @@ class Game extends React.Component {
         newState = this.setHintsForDisplay(hints);
         this.state.leftHints = newState.leftHints;
         this.state.topHints = newState.topHints;
-        this.state.maxTopHintSize = newState.maxTopHintSize;
-        this.state.maxLeftHintSize = newState.maxLeftHintSize;
     }
 
     handleClick(r, c) {
@@ -127,27 +135,21 @@ class Game extends React.Component {
     reset() {
         let squares = this.state.squares.slice();
 
-        for (let r = 0; r < this.state.height; r++) {
-            for (let c = 0; c < this.state.width; c++) {
-                let oldSquare = squares[r][c];
-                if (oldSquare.props.blocked) {
-                    squares[r][c] = React.cloneElement(
-                        oldSquare,
-                        {
-                            displayValue: SQUARE_VALUES.CROSSED_OFF,
-                            filled: false,
-                        }
-                    );
+        for (let [r, row] of squares.entries()) {
+            for (let [c, square] of row.entries()) {
+                let displayValue;
+                if (square.props.blocked) {
+                    displayValue = SQUARE_VALUES.CROSSED_OFF;
                 } else {
-                    squares[r][c] = React.cloneElement(
-                        oldSquare,
-                        {
-                            displayValue: SQUARE_VALUES.EMPTY,
-                            filled: false,
-                        }
-                    );
-
+                    displayValue = SQUARE_VALUES.EMPTY;
                 }
+
+                squares[r][c] = React.cloneElement(
+                    square,
+                    {
+                        displayValue: displayValue,
+                    }
+                );
             }
         }
 
@@ -160,6 +162,15 @@ class Game extends React.Component {
         let leftHints = [...Array(this.state.height).keys()].map(() => []);
         let topHints = [...Array(this.state.width).keys()].map(() => []);
 
+        // calculate max top/left hints as we go,
+        // so we don't have to do it later.
+        // we set to 1 because if we have all empty rows or columns or both,
+        // these will never be set.
+        let maxTopHintSize = 1;
+        let maxLeftHintSize = 1;
+
+        // generate hints by counting squares in each row and column.
+        // empty columns are handled in a later step.
         let colCounts = Array(this.state.width).fill(0);
         for (let [r, row] of this.state.squares.entries()) {
             let rowCount = 0;
@@ -172,11 +183,24 @@ class Game extends React.Component {
                 } else {
                     if (colCounts[c] > 0) {
                         topHints[c].push(colCounts[c]);
+
+                        // when pushing new top hints,
+                        // check if we have a new largest top hint.
+                        if (topHints[c].length > maxTopHintSize) {
+                            maxTopHintSize = topHints[c].length;
+                        }
+
                         colCounts[c] = 0;
                     }
 
                     if (rowCount > 0) {
                         leftHints[r].push(rowCount);
+
+                        // do this for left hints as well.
+                        if (leftHints[r].length > maxLeftHintSize) {
+                            maxLeftHintSize = leftHints[r].length;
+                        }
+
                         rowCount = 0;
                     }
                 }
@@ -185,6 +209,10 @@ class Game extends React.Component {
             // Finish row.
             if (rowCount > 0) {
                 leftHints[r].push(rowCount);
+
+                if (leftHints[r].length > maxLeftHintSize) {
+                    maxLeftHintSize = leftHints[r].length;
+                }
             }
 
             // Handle empty row.
@@ -197,6 +225,10 @@ class Game extends React.Component {
         for (let c = 0; c < this.state.width; c++) {
             if (colCounts[c] > 0) {
                 topHints[c].push(colCounts[c]);
+
+                if (topHints[c].length > maxTopHintSize) {
+                    maxTopHintSize = topHints[c].length;
+                }
             }
 
             // Handle empty columns.
@@ -208,68 +240,59 @@ class Game extends React.Component {
         return {
             topHints: topHints,
             leftHints: leftHints,
+            maxLeftHintSize: maxLeftHintSize,
+            maxTopHintSize: maxTopHintSize,
         };
     }
 
     setHintsForDisplay(hints) {
-        // pad out hints.
-        // we want all left hints to be of the same length,
-        // and all top hints,
-        // so we can more easily align them with each other and the squares.
+        // we're essentially just padding hints out here.
+        // we want all top hints to be arrays of the same length,
+        // and we want all left hints to be arrays of the same length.
 
-        // TODO can I be more clever and save a loop here? maybe do this in genHints somehow?
-        let maxLeftHintSize = 0;
-        for (let hint of hints.leftHints) {
-            if (hint.length > maxLeftHintSize) {
-                maxLeftHintSize = hint.length;
-            }
-        }
+        // ADDITIONALLY,
+        // we want top hints to be padded out by the size of the left hints,
+        // so that they align with the board,
+        // and,
+        // for convenience,
+        // we also want the top hints rearranged into rows,
+        // not columns.
 
+        // the left hints are easy,
+        // they just need the first kind of padding.
         let leftHints = [];
         for (let hint of hints.leftHints) {
             let newHint = [];
-            if (hint.length < maxLeftHintSize) {
-                newHint.push(...Array(maxLeftHintSize - hint.length).fill(null));
+            if (hint.length < this.state.maxLeftHintSize) {
+                newHint.push(...Array(this.state.maxLeftHintSize - hint.length).fill(null));
             }
             newHint.push(...hint);
 
             leftHints.push(newHint);
         }
 
-        let maxTopHintSize = 0;
-        for (let hint of hints.topHints) {
-            if (hint.length > maxTopHintSize) {
-                maxTopHintSize = hint.length;
+        // the top hints are... harder.
+        let topHints = [...Array(this.state.maxTopHintSize).keys()]
+            .map(
+                () => Array(this.state.maxLeftHintSize).fill(null)
+            );
+        for (let hintCol of hints.topHints) {
+            let paddedHintCol = [];
+            if (hintCol.length < this.state.maxTopHintSize) {
+                paddedHintCol.push(...Array(this.state.maxTopHintSize - hintCol.length).fill(null));
             }
-        }
+            paddedHintCol.push(...hintCol);
 
-        let topHints = [];
-        for (let hint of hints.topHints) {
-            let newHint = [];
-            if (hint.length < maxTopHintSize) {
-                newHint.push(...Array(maxTopHintSize - hint.length).fill(null));
+            // in addition to padding,
+            // we want to rearrange the top hints from "vertical" arrays to "horizontal",
+            // to make displaying them more straightforward.
+            for (let [h, hint] of paddedHintCol.entries()) {
+                topHints[h].push(hint);
             }
-            newHint.push(...hint);
-
-            topHints.push(newHint);
-        }
-
-        // rearrange top hints into horizontal arrays after padding.
-        // should be safe to do at that point without misaligning them.
-        let finalTopHints = [];
-        for (let i = 0; i < maxTopHintSize; i++) {
-            // pad out space equal to how wide the left hints are,
-            // so these hints align with the board.
-            let newHintRow = Array(maxLeftHintSize).fill(null);
-            newHintRow.push(...topHints.map(list => list[i]));
-
-            finalTopHints.push(newHintRow);
         }
 
         return {
-            maxTopHintSize: maxTopHintSize,
-            maxLeftHintSize: maxLeftHintSize,
-            topHints: finalTopHints,
+            topHints: topHints,
             leftHints: leftHints,
         };
     }
@@ -379,11 +402,12 @@ class Game extends React.Component {
                 Validate
             </button>;
 
+        // TODO push back down into a board class.
         // combine hints and squares into a single array,
         // so that we can cleanly give each row keys.
         let rowIndex = 0;
         const board = [];
-        let gridStart = this.state.leftHints[0].length;
+        let gridStart = this.state.maxLeftHintSize;
 
         for (let hintRow of this.state.topHints) {
             let newRow =
@@ -440,7 +464,6 @@ class Game extends React.Component {
             rowIndex++;
         }
 
-        // TODO this just keeps getting messier.
         return (
             <div className="game">
                 <div className="game-board">
@@ -448,8 +471,12 @@ class Game extends React.Component {
                 </div>
                 <div className="game-info">
                     <div>{reset}</div>
-                    <div>{validate}</div>
-                    <div>{this.state.validateResult}</div>
+                    <div>
+                        {validate}
+                    </div>
+                    <div>
+                        {this.state.validateResult}
+                    </div>
                 </div>
             </div>
         );
