@@ -1,65 +1,83 @@
 body {
-    font: 14px "Century Gothic", Futura, sans-serif;
-    margin: 20px;
+  font: 14px "Century Gothic", Futura, sans-serif;
 }
 
-ol, ul {
-    padding-left: 30px;
+div {
+  padding: 0.5em;
 }
 
-.board-row::after {
-    clear: both;
-    content: "";
-    display: table;
+.board-entry {
+  margin: 0;
 }
 
-.status {
-    margin-bottom: 10px;
+.board-entry-spacer {
+  margin: 0 17px 0 0;
 }
 
-.square {
-    background: #ffffff;
-    border: 1px solid #999999;
-    float: left;
-    font-size: 24px;
-    font-weight: bold;
-    line-height: 34px;
-    height: 34px;
-    margin-right: -1px;
-    margin-top: -1px;
-    padding: 0;
-    text-align: center;
-    width: 34px;
+.board-row {
+  margin: 0;
+}
+
+.board-row-spacer {
+  margin: 0 0 17px 0;
+}
+
+.filled_square, .square, li {
+  background: #ffffff;
+  float: left;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 34px;
+  height: 34px;
+  margin-right: -1px;
+  margin-top: -1px;
+  padding: 0;
+  text-align: center;
+  width: 34px;
+}
+
+.filled_square, .square {
+  border: 1px solid #999999;
 }
 
 .filled_square {
-    background: #000000;
-    border: 1px solid #999999;
-    float: left;
-    font-size: 24px;
-    font-weight: bold;
-    line-height: 34px;
-    height: 34px;
-    margin-right: -1px;
-    margin-top: -1px;
-    padding: 0;
-    text-align: center;
-    width: 34px;
+  background: #000000;
 }
 
 .filled_square:focus, .square:focus {
-    outline: none;
-}
-
-.kbd-navigation .square:focus {
-    background: #dddddd;
+  outline: none;
 }
 
 .game {
-    display: flex;
-    flex-direction: row;
+  display: flex;
+  flex-direction: row;
+  margin: 0;
+  max-width: 100%;
+  min-width: 100%;
+  padding: 0;
+}
+
+.board-row, .board-row-spacer {
+  display: flex;
+  flex-direction: row;
+  list-style-type: none;
 }
 
 .game-info {
-    margin-left: 20px;
+  margin-left: 20px;
+  display: grid;
 }
+
+.kbd-navigation .square:focus {
+  background: #dddddd;
+}
+
+.status {
+  margin-bottom: 10px;
+}
+
+.top-hints {
+  flex-direction: row;
+}
+
+/*# sourceMappingURL=index.css.map */

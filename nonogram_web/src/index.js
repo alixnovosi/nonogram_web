@@ -52,23 +52,6 @@ Square.propTypes = {
     onClick: PropTypes.func.isRequired
 };
 
-class Board extends React.Component {
-    render() {
-        let output = [];
-        for (let row of this.props.squares) {
-            output.push(<div>{row}</div>);
-        }
-
-        return <div>{output}</div>;
-    }
-}
-
-Board.propTypes = {
-    height: PropTypes.number.isRequired,
-    width: PropTypes.number,
-    squares: PropTypes.array.isRequired,
-};
-
 class Game extends React.Component {
     constructor(props) {
         super(props);
@@ -78,6 +61,8 @@ class Game extends React.Component {
         };
 
         // TODO find best practices for this nonsense I'm doing.
+        // TODO specifically the like 10 loops over every square this all requires.
+        // there MUST be a better way.
         let newState;
         newState = this.decodeSquares();
         this.state.height = newState.height;
@@ -86,12 +71,19 @@ class Game extends React.Component {
 
         // generate hints,
         // and then force blank rows based on those hints.
-        newState = this.genHints();
-        this.state.leftHints = newState.leftHints;
-        this.state.topHints = newState.topHints;
+        let hints = this.genHints();
+        this.state.leftHints = hints.leftHints;
+        this.state.topHints = hints.topHints;
 
         newState = this.setBlockedSections();
         this.state.squares = newState.squares;
+
+        // and then reformat hints again.
+        newState = this.setHintsForDisplay(hints);
+        this.state.leftHints = newState.leftHints;
+        this.state.topHints = newState.topHints;
+        this.state.maxTopHintSize = newState.maxTopHintSize;
+        this.state.maxLeftHintSize = newState.maxLeftHintSize;
     }
 
     handleClick(r, c) {
@@ -194,9 +186,71 @@ class Game extends React.Component {
             }
         }
 
-        // this.setHintsForDisplay();
         return {
             topHints: topHints,
+            leftHints: leftHints,
+        };
+    }
+
+    setHintsForDisplay(hints) {
+        // pad out hints.
+        // we want all left hints to be of the same length,
+        // and all top hints,
+        // so we can more easily align them with each other and the squares.
+
+        // TODO can I be more clever and save a loop here? maybe do this in genHints somehow?
+        let maxLeftHintSize = 0;
+        for (let hint of hints.leftHints) {
+            if (hint.length > maxLeftHintSize) {
+                maxLeftHintSize = hint.length;
+            }
+        }
+
+        let leftHints = [];
+        for (let hint of hints.leftHints) {
+            let newHint = [];
+            if (hint.length < maxLeftHintSize) {
+                newHint.push(...Array(maxLeftHintSize - hint.length).fill(null));
+            }
+            newHint.push(...hint);
+
+            leftHints.push(newHint);
+        }
+
+        let maxTopHintSize = 0;
+        for (let hint of hints.topHints) {
+            if (hint.length > maxTopHintSize) {
+                maxTopHintSize = hint.length;
+            }
+        }
+
+        let topHints = [];
+        for (let hint of hints.topHints) {
+            let newHint = [];
+            if (hint.length < maxTopHintSize) {
+                newHint.push(...Array(maxTopHintSize - hint.length).fill(null));
+            }
+            newHint.push(...hint);
+
+            topHints.push(newHint);
+        }
+
+        // rearrange top hints into horizontal arrays after padding.
+        // should be safe to do at that point without misaligning them.
+        let finalTopHints = [];
+        for (let i = 0; i < maxTopHintSize; i++) {
+            // pad out space equal to how wide the left hints are,
+            // so these hints align with the board.
+            let newHintRow = Array(maxLeftHintSize).fill(null);
+            newHintRow.push(...topHints.map(list => list[i]));
+
+            finalTopHints.push(newHintRow);
+        }
+
+        return {
+            maxTopHintSize: maxTopHintSize,
+            maxLeftHintSize: maxLeftHintSize,
+            topHints: finalTopHints,
             leftHints: leftHints,
         };
     }
@@ -226,7 +280,7 @@ class Game extends React.Component {
 
     decodeSquares() {
         // base64 -> zip -> string -> object.
-        // also need to un-url-safe-encode in there
+        // also need to un-url-safe-encode in there.
         let base64BoardDict = this.state.code.replace(/_/g, "/").replace(/-/g, "+");
         let boardDictZipped = window.atob(base64BoardDict);
         let boardDictArray = pako.ungzip(boardDictZipped);
@@ -269,8 +323,8 @@ class Game extends React.Component {
             }
 
             // convert 1D array index i into 2D indices r and c for convenience.
-            let r = Math.floor(i / width);
-            let c = i % width;
+            const r = Math.floor(i / width);
+            const c = i % width;
 
             let square = <Square
                 key={i}
@@ -292,19 +346,81 @@ class Game extends React.Component {
     }
 
     render() {
+        // the nonogram grid should be broken into segments this big by this big,
+        // for readability.
+        const gridBreak = 5;
+
         const reset =
             <button onClick={() => this.reset()}>
                 Reset
             </button>;
 
+        // combine hints and squares into a single array,
+        // so that we can cleanly give each row keys.
+        let rowIndex = 0;
+        const board = [];
+        let gridStart = this.state.leftHints[0].length;
+
+        for (let hintRow of this.state.topHints) {
+            let newRow =
+                <ul className="board-row" key={rowIndex}>
+                    {hintRow.map((item, itemIndex) => {
+                        // TODO gross.
+                        let entryClassName;
+                        if (itemIndex > gridStart && (itemIndex-gridStart+1) % gridBreak === 0) {
+                            entryClassName = "board-entry-spacer";
+                        } else {
+                            entryClassName = "board-entry";
+                        }
+
+                        return <li className={entryClassName} key={itemIndex}>
+                            {item}
+                        </li>;
+                    })}
+                </ul>;
+
+            board.push(newRow);
+            rowIndex++;
+        }
+
+        for (let i = 0; i < this.state.squares.length; i++) {
+            let entries = [];
+            entries.push(...this.state.leftHints[i]);
+            entries.push(...this.state.squares[i]);
+
+            let rowClassName;
+            if ((rowIndex-1) % gridBreak === 0) {
+                rowClassName = "board-row-spacer";
+            } else {
+                rowClassName = "board-row";
+            }
+
+            let newRow =
+                <ul className={rowClassName} key={rowIndex}>
+                    {entries.map((item, itemIndex) => {
+                        let entryClassName;
+                        // TODO gross.
+                        if (itemIndex > gridStart && (itemIndex-gridStart+1) % 5 === 0) {
+                            entryClassName = "board-entry-spacer";
+                        } else {
+                            entryClassName = "board-entry";
+                        }
+
+                        return <li className={entryClassName} key={itemIndex}>
+                            {item}
+                        </li>;
+                    })}
+                </ul>;
+
+            board.push(newRow);
+            rowIndex++;
+        }
+
+        // TODO this just keeps getting messier.
         return (
             <div className="game">
                 <div className="game-board">
-                    <Board
-                        height={this.state.height}
-                        width={this.state.width}
-                        squares={this.state.squares}
-                    />
+                    {board}
                 </div>
                 <div className="game-info">
                     <div>{reset}</div>
