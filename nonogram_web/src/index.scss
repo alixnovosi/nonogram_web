@@ -1,81 +1,112 @@
-body {
-    font: 14px "Century Gothic", Futura, sans-serif;
-}
+$background: #EEEEFF;
+$nav_blue: #333355;
 
-div {
-    padding: 0.5em;
-}
-
-.board-entry {
-    margin: 0;
-}
-
-.board-entry-spacer {
-    margin: 0 17px 0 0;
-}
-
-.board-row {
-    margin: 0;
-}
-
-.board-row-spacer {
-    margin: 0 0 17px 0;
-}
-
-.filled_square, .square, li {
-    background: #ffffff;
-    float: left;
-    font-size: 24px;
-    font-weight: bold;
-    line-height: 34px;
-    height: 34px;
-    margin-right: -1px;
-    margin-top: -1px;
-    padding: 0;
-    text-align: center;
-    width: 34px;
-}
-
-.filled_square, .square {
-    border: 1px solid #999999;
-}
-
-.filled_square {
-    background: #000000;
-}
-
-.filled_square:focus, .square:focus {
-    outline: none;
-}
+$cell_size: 34px;
+$faint_nav_blue: #9999BB;
+$board_background: #333344;
+$board_filled: #666677;
+$board_denied: #BCBCCD;
+$board_blocked_denied: #DEDEEF;
+$board_empty: #EFEFFF;
 
 .game {
+    background-color: $nav_blue;
+    border-radius: 10px;
+    color: $background;
     display: flex;
     flex-direction: row;
-    margin: 0;
-    max-width: 100%;
-    min-width: 100%;
-    padding: 0;
-}
+    justify-content: center;
+    flex-wrap: wrap;
 
-.board-row, .board-row-spacer {
-    display: flex;
-    flex-direction: row;
-    list-style-type: none;
-}
+    .board-entry {
+        margin: 0 5px 5px 0;
+    }
 
-.game-info {
-    margin-left: 20px;
-    display: grid;
-}
+    .board-entry-spacer {
+        margin: 0 10px 5px 0;
+    }
 
-.kbd-navigation .square:focus {
-    background: #dddddd;
-}
+    .board-row {
+        margin: 0;
+    }
 
-.status {
-    margin-bottom: 10px;
-}
+    .board-row-spacer {
+        margin: 0 0 5px 0;
+    }
 
-.top-hints {
-    flex-direction: row;
+    .filled_square, .empty_square, .blocked_square, li {
+        border: none;
+        float: left;
+        font-size: 24px;
+        font-weight: bold;
+        height: $cell_size;
+        line-height: $cell_size;
+        padding: 0;
+        text-align: center;
+        width: $cell_size;
+    }
+
+    .filled_square, .empty_square, .blocked_square {
+        color: $board_filled;
+        background: $background;
+    }
+
+    .filled_square, .empty_square {
+        color: $nav_blue;
+    }
+
+    .blocked_square {
+        background-color: $board_blocked_denied;
+    }
+
+    .filled_square {
+        background-color: $board_filled;
+    }
+
+    .board-row, .board-row-spacer {
+        display: flex;
+        flex-direction: row;
+        list-style-type: none;
+    }
+
+    .game-board {
+        margin: 1em;
+        flex-grow: 10;
+    }
+
+    .game-info {
+        color: $nav_blue;
+        background-color: $background;
+        border-radius: 10px;
+        display: flex;
+        font-size: 18px;
+        font-weight: bold;
+        flex-direction: column;
+        flex-grow: 1;
+        justify-content: center;
+        line-height: $cell_size;
+        margin: 1em;
+
+        button {
+            background-color: $faint_nav_blue;
+            border: none;
+            font-size: 18px;
+            padding: 0;
+            width: 96px;
+            height: 34px;
+        }
+
+        div {
+            margin: 0 auto;
+            padding: 1em;
+        }
+    }
+
+    .kbd-navigation .square:focus {
+        background: #dddddd;
+    }
+
+    .top-hints {
+        flex-direction: row;
+    }
 }
