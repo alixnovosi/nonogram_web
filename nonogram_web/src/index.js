@@ -4,8 +4,6 @@ import pako from "pako";
 import queryString from "query-string";
 import PropTypes from "prop-types";
 
-import "./index.css";
-
 const SQUARE_VALUES = Object.freeze({
     EMPTY: Symbol("Empty"),
     FILLED: Symbol("Filled"),
@@ -20,34 +18,36 @@ const SQUARE_VALUES_LIST = [
 class Square extends React.Component {
     render() {
         const value = this.props.displayValue;
-        const button_contents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
-        let button_class;
+        const buttonContents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
+        let buttonClass;
         if (value === SQUARE_VALUES.FILLED) {
-            button_class = "filled_square";
+            buttonClass = "filled-square";
         } else if (value === SQUARE_VALUES.EMPTY) {
-            button_class = "empty_square";
+            buttonClass = "empty-square";
+        } else if (this.props.blocked) {
+            buttonClass = "force-blocked-square";
         } else {
-            button_class = "blocked_square";
+            buttonClass = "blocked-square";
         }
 
         // TODO dry
         if (this.props.blocked) {
             return (
                 <button
-                    className={button_class}
+                    className={buttonClass}
                     onClick={this.props.onClick}
                     disabled>
 
-                    {button_contents}
+                    {buttonContents}
                 </button>
             );
         } else {
             return (
                 <button
-                    className={button_class}
+                    className={buttonClass}
                     onClick={this.props.onClick}>
 
-                    {button_contents}
+                    {buttonContents}
                 </button>
             );
         }
@@ -76,6 +76,7 @@ class Game extends React.Component {
         newState = this.decodeSquares();
         this.state.height = newState.height;
         this.state.width = newState.width;
+        this.state.size = newState.size;
         this.state.squares = newState.squares;
 
         // generate hints,
@@ -90,7 +91,7 @@ class Game extends React.Component {
         this.state.squares = newState.squares;
 
         // and then reformat hints again.
-        newState = this.setHintsForDisplay(hints);
+        newState = this.setHintsForDisplay();
         this.state.leftHints = newState.leftHints;
         this.state.topHints = newState.topHints;
     }
@@ -245,7 +246,7 @@ class Game extends React.Component {
         };
     }
 
-    setHintsForDisplay(hints) {
+    setHintsForDisplay() {
         // we're essentially just padding hints out here.
         // we want all top hints to be arrays of the same length,
         // and we want all left hints to be arrays of the same length.
@@ -261,7 +262,7 @@ class Game extends React.Component {
         // the left hints are easy,
         // they just need the first kind of padding.
         let leftHints = [];
-        for (let hint of hints.leftHints) {
+        for (let hint of this.state.leftHints) {
             let newHint = [];
             if (hint.length < this.state.maxLeftHintSize) {
                 newHint.push(...Array(this.state.maxLeftHintSize - hint.length).fill(null));
@@ -276,7 +277,7 @@ class Game extends React.Component {
             .map(
                 () => Array(this.state.maxLeftHintSize).fill(null)
             );
-        for (let hintCol of hints.topHints) {
+        for (let hintCol of this.state.topHints) {
             let paddedHintCol = [];
             if (hintCol.length < this.state.maxTopHintSize) {
                 paddedHintCol.push(...Array(this.state.maxTopHintSize - hintCol.length).fill(null));
@@ -338,26 +339,26 @@ class Game extends React.Component {
 
         let hexString = boardDict.squares;
 
-        let unpadded_binary = "";
+        let unpaddedBinary = "";
         for (let h = 0; h < hexString.length; h++) {
             let hexit = hexString[h];
             // Make sure not to put extra padding in from the first digit - padding step below
             // will take it.
-            let bit_string = parseInt(hexit, 16).toString(2);
+            let bitString = parseInt(hexit, 16).toString(2);
             if (h > 0) {
-                unpadded_binary += bit_string.padStart(4, "0");
+                unpaddedBinary += bitString.padStart(4, "0");
             } else {
-                unpadded_binary += bit_string;
+                unpaddedBinary += bitString;
             }
         }
 
-        let padded_binary = unpadded_binary.padStart(size, "0");
+        let paddedBinary = unpaddedBinary.padStart(size, "0");
 
         let squares = [];
         let row = [];
         // python would let me enumerate over the string...
-        for (let i = 0; i < padded_binary.length; i++) {
-            let char = padded_binary[i];
+        for (let i = 0; i < size; i++) {
+            let char = paddedBinary[i];
 
             if (i % width === 0 && i !== 0) {
                 squares.push(row);
@@ -384,6 +385,7 @@ class Game extends React.Component {
             height: height,
             width: width,
             squares: squares,
+            size: size,
         };
     }
 
@@ -431,7 +433,7 @@ class Game extends React.Component {
             rowIndex++;
         }
 
-        for (let i = 0; i < this.state.squares.length; i++) {
+        for (let i = 0; i < this.state.height; i++) {
             let entries = [];
             entries.push(...this.state.leftHints[i]);
             entries.push(...this.state.squares[i]);
@@ -492,12 +494,12 @@ Game.propTypes = {
 
 // ========================================
 
-let params = queryString.parse(window.location.search);
-let board_code = params.board;
+let PARAMS = queryString.parse(window.location.search);
+let BOARD_CODE = PARAMS.board;
 
-let board = <Game code={board_code}/>;
+let BOARD = <Game code={BOARD_CODE}/>;
 
 ReactDOM.render(
-    board,
+    BOARD,
     document.getElementById("root")
 );
