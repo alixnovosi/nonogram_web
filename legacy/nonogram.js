@@ -90,7 +90,6 @@ class Nonogrid {
         let boardDictZipped = pako.gzip(boardDictString, {to: "string"});
 
         let base64BoardDict = window.btoa(boardDictZipped);
-
         let url64BoardDict = base64BoardDict.replace(/\//g, "_").replace(/\+/g, "-");
 
         return url64BoardDict;
@@ -109,13 +108,9 @@ class Nonogrid {
         let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
 
         let boardDict = JSON.parse(boardDictString);
-        let height = parseInt(boardDict.height, 10);
-        let width = parseInt(boardDict.width, 10);
-
-        this.height = height;
-        this.width = width;
-
-        let size = height * width;
+        this.height = parseInt(boardDict.height, 10);
+        this.width = parseInt(boardDict.width, 10);
+        let size = this.height * this.width;
 
         let hexString = boardDict["squares"];
 
@@ -140,7 +135,7 @@ class Nonogrid {
         for (let c = 0; c < padded_binary.length; c++) {
             let char = padded_binary[c];
 
-            if (c % width == 0 && c != 0) {
+            if (c % this.width == 0 && c != 0) {
                 this.squares.push(row);
                 row = [];
             }
