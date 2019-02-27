@@ -58,6 +58,7 @@ Square.propTypes = {
     displayValue: PropTypes.any.isRequired,
     filled: PropTypes.bool.isRequired,
     blocked: PropTypes.bool.isRequired,
+    solved: PropTypes.bool.isRequired,
     onClick: PropTypes.func.isRequired
 };
 
@@ -130,7 +131,7 @@ class Game extends React.Component {
                 if ((square.props.filled && square.props.displayValue === SQUARE_VALUES.EMPTY) ||
                     (!square.props.filled && square.props.displayValue === SQUARE_VALUES.FILLED)) {
                     this.setState({
-                        validateResult: "Solution is not correct!",
+                        validateResult: "No!❌",
                     });
                     return;
                 }
@@ -138,7 +139,7 @@ class Game extends React.Component {
         }
 
         this.setState({
-            validateResult: "Solution is correct!",
+            validateResult: "Yes!✔️",
         });
     }
 
