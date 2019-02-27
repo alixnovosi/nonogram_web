@@ -31,7 +31,7 @@ class Square extends React.Component {
         }
 
         // TODO dry
-        if (this.props.blocked) {
+        if (this.props.solved || this.props.blocked) {
             return (
                 <button
                     className={buttonClass}
@@ -65,8 +65,17 @@ class Game extends React.Component {
     constructor(props) {
         super(props);
 
+        let solved;
+        if (props.solved &&
+            (props.solved === "true" || props.solved === "1")) {
+            solved = true;
+        } else {
+            solved = false;
+        }
+
         this.state = {
             code: props.code,
+            solved: solved,
         };
 
         // TODO find best practices for this nonsense I'm doing.
@@ -134,6 +143,10 @@ class Game extends React.Component {
     }
 
     reset() {
+        if (this.state.solved) {
+            return;
+        }
+
         let squares = this.state.squares.slice();
 
         for (let [r, row] of squares.entries()) {
@@ -369,12 +382,22 @@ class Game extends React.Component {
             const r = Math.floor(i / width);
             const c = i % width;
 
+            let filled = char === "1";
+
+            let defaultDisplayValue;
+            if (this.state.solved && filled) {
+                defaultDisplayValue = SQUARE_VALUES.FILLED;
+            } else {
+                defaultDisplayValue = SQUARE_VALUES.EMPTY;
+            }
+
             let square = <Square
                 key={i}
-                filled={char === "1"}
-                displayValue={SQUARE_VALUES.EMPTY}
+                filled={filled}
+                displayValue={defaultDisplayValue}
                 blocked={false}
                 onClick={() => this.handleClick(r, c)}
+                solved={this.state.solved}
             />;
             row.push(square);
         }
@@ -475,20 +498,25 @@ class Game extends React.Component {
             rowIndex++;
         }
 
+        let gameInfo = null;
+        if (this.state.solved === false) {
+            gameInfo = <div className="game-info">
+                <div>{reset}</div>
+                <div>
+                    {validate}
+                </div>
+                <div>
+                    {this.state.validateResult}
+                </div>
+            </div>;
+        }
+
         return (
             <div className="game">
                 <div className="game-board">
                     {board}
                 </div>
-                <div className="game-info">
-                    <div>{reset}</div>
-                    <div>
-                        {validate}
-                    </div>
-                    <div>
-                        {this.state.validateResult}
-                    </div>
-                </div>
+                {gameInfo}
             </div>
         );
     }
@@ -496,6 +524,7 @@ class Game extends React.Component {
 
 Game.propTypes = {
     code: PropTypes.string.isRequired,
+    solved: PropTypes.string,
     height: PropTypes.number,
     width: PropTypes.number,
     squares: PropTypes.array,
@@ -505,8 +534,9 @@ Game.propTypes = {
 
 let PARAMS = queryString.parse(window.location.search);
 let BOARD_CODE = PARAMS.board;
+let SOLVED = PARAMS.solved;
 
-let BOARD = <Game code={BOARD_CODE}/>;
+let BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
 
 ReactDOM.render(
     BOARD,
