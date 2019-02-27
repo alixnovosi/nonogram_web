@@ -415,12 +415,15 @@ class Game extends React.Component {
             let newRow =
                 <ul className="board-row" key={rowIndex}>
                     {hintRow.map((item, itemIndex) => {
-                        // TODO gross.
                         let entryClassName;
-                        if (itemIndex > gridStart && (itemIndex-gridStart+1) % gridBreak === 0) {
-                            entryClassName = "board-entry-spacer";
-                        } else {
+                        if ((itemIndex - gridStart) <= 0 ||
+                            itemIndex === (hintRow.size - 1) ||
+                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
+
                             entryClassName = "board-entry";
+
+                        } else {
+                            entryClassName = "board-entry-spacer";
                         }
 
                         return <li className={entryClassName} key={itemIndex}>
@@ -439,21 +442,27 @@ class Game extends React.Component {
             entries.push(...this.state.squares[i]);
 
             let rowClassName;
-            if ((rowIndex-1) % gridBreak === 0) {
-                rowClassName = "board-row-spacer";
-            } else {
+            let squareRowIndex = rowIndex - this.state.maxTopHintSize;
+            if (squareRowIndex === 0 ||
+                squareRowIndex === this.state.height - 1 ||
+                (squareRowIndex+1) % gridBreak !== 0) {
                 rowClassName = "board-row";
+            } else {
+                rowClassName = "board-row-spacer";
             }
 
             let newRow =
                 <ul className={rowClassName} key={rowIndex}>
                     {entries.map((item, itemIndex) => {
                         let entryClassName;
-                        // TODO gross.
-                        if (itemIndex > gridStart && (itemIndex-gridStart+1) % 5 === 0) {
-                            entryClassName = "board-entry-spacer";
-                        } else {
+                        if ((itemIndex - gridStart) <= 0 ||
+                            itemIndex === (entries.size - 1) ||
+                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
+
                             entryClassName = "board-entry";
+
+                        } else {
+                            entryClassName = "board-entry-spacer";
                         }
 
                         return <li className={entryClassName} key={itemIndex}>
