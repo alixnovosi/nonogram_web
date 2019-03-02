@@ -215,54 +215,96 @@ class Game extends React.Component {
         // need to keep in mind that the hex string is going to be 1-3 digits short,
         // which is one messed-up hex digit's worth.
         let hexString = boardDict.squares;
-        let unpaddedBinary = "";
-        for (let h = 0; h < hexString.length; h++) {
-            let hexit = hexString[h];
-            // make sure not to put extra padding in from the first digit - padding step below
-            // will take it.
-            let bitString = parseInt(hexit, 16).toString(2);
-            if (h > 0) {
-                unpaddedBinary += bitString.padStart(4, "0");
-            } else {
-                unpaddedBinary += bitString;
+
+        // we should be able to just have a reverse index,
+        // and if it's below zero,
+        // just fill out zeroes,
+        // because we know we ran out of hex digits.
+        let squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
+        let i = size-1;
+        let lastHIndex = null;
+        let hChunk;
+        for (let r = height-1; r >= 0; r--) {
+            for (let c = width-1; c >= 0; c--) {
+                let hIndex = hexString.length - Math.floor((size - i - 1) / 4) - 1;
+                if (hIndex !== lastHIndex) {
+                    hChunk = parseInt(hexString[hIndex], 16).toString(2).padStart(4, "0");
+                    lastHIndex = hIndex;
+                }
+
+                let hChunkIndex = (4 - ((size - i - 1) % 4)) - 1;
+                let value = hChunk[hChunkIndex];
+                let filled = value === "1";
+
+                let defaultDisplayValue;
+                if (this.state.solved && filled) {
+                    defaultDisplayValue = SQUARE_VALUES.FILLED;
+                } else {
+                    defaultDisplayValue = SQUARE_VALUES.EMPTY;
+                }
+
+                squares[r][c] =
+                    <Square
+                        key={i}
+                        filled={filled}
+                        displayValue={defaultDisplayValue}
+                        blocked={false}
+                        onClick={() => this.handleClick(r, c)}
+                        solved={this.state.solved}
+                    />;
+
+                i--;
             }
         }
-
-        let paddedBinary = unpaddedBinary.padStart(size, "0");
-
-        let squares = [];
-        let row = [];
-        // python would let me enumerate over the string...
-        for (let i = 0; i < size; i++) {
-            if (i % width === 0 && i !== 0) {
-                squares.push(row);
-                row = [];
-            }
-
-            // convert 1D array index i into 2D indices r and c for convenience.
-            const r = Math.floor(i / width);
-            const c = i % width;
-
-            let filled = paddedBinary[i] === "1";
-            let defaultDisplayValue;
-            if (this.state.solved && filled) {
-                defaultDisplayValue = SQUARE_VALUES.FILLED;
-            } else {
-                defaultDisplayValue = SQUARE_VALUES.EMPTY;
-            }
-
-            row.push(
-                <Square
-                    key={i}
-                    filled={filled}
-                    displayValue={defaultDisplayValue}
-                    blocked={false}
-                    onClick={() => this.handleClick(r, c)}
-                    solved={this.state.solved}
-                />
-            );
-        }
-        squares.push(row);
+        // // figure out if we have a front section we need to fix.
+        // let unpaddedBinary = "";
+        // for (let h = 0; h < hexString.length; h++) {
+        //     let hexit = hexString[h];
+        //     // make sure not to put extra padding in from the first digit - padding step below
+        //     // will take it.
+        //     let bitString = parseInt(hexit, 16).toString(2);
+        //     if (h > 0) {
+        //         unpaddedBinary += bitString.padStart(4, "0");
+        //     } else {
+        //         unpaddedBinary += bitString;
+        //     }
+        // }
+        //
+        // let paddedBinary = unpaddedBinary.padStart(size, "0");
+        //
+        // let squares = [];
+        // let row = [];
+        // // python would let me enumerate over the string...
+        // for (let i = 0; i < size; i++) {
+        //     if (i % width === 0 && i !== 0) {
+        //         squares.push(row);
+        //         row = [];
+        //     }
+        //
+        //     // convert 1D array index i into 2D indices r and c for convenience.
+        //     const r = Math.floor(i / width);
+        //     const c = i % width;
+        //
+        //     let filled = paddedBinary[i] === "1";
+        //     let defaultDisplayValue;
+        //     if (this.state.solved && filled) {
+        //         defaultDisplayValue = SQUARE_VALUES.FILLED;
+        //     } else {
+        //         defaultDisplayValue = SQUARE_VALUES.EMPTY;
+        //     }
+        //
+        //     row.push(
+        //         <Square
+        //             key={i}
+        //             filled={filled}
+        //             displayValue={defaultDisplayValue}
+        //             blocked={false}
+        //             onClick={() => this.handleClick(r, c)}
+        //             solved={this.state.solved}
+        //         />
+        //     );
+        // }
+        // squares.push(row);
 
         return {
             height: height,
