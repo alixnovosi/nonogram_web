@@ -19,43 +19,35 @@ class Square extends React.Component {
     render() {
         const value = this.props.displayValue;
         const buttonContents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
-        let buttonClass;
+
+        let inputProps = {};
         if (value === SQUARE_VALUES.FILLED) {
-            buttonClass = "filled-square";
+            inputProps.className = "filled-square";
         } else if (value === SQUARE_VALUES.EMPTY) {
-            buttonClass = "empty-square";
+            inputProps.className = "empty-square";
         } else if (this.props.blocked) {
-            buttonClass = "force-blocked-square";
+            inputProps.className = "force-blocked-square";
         } else {
-            buttonClass = "blocked-square";
+            inputProps.className = "blocked-square";
         }
 
-        // TODO dry
         if (this.props.solved || this.props.blocked) {
-            return (
-                <button
-                    className={buttonClass}
-                    onClick={this.props.onClick}
-                    disabled>
-
-                    {buttonContents}
-                </button>
-            );
-        } else {
-            return (
-                <button
-                    className={buttonClass}
-                    onClick={this.props.onClick}>
-
-                    {buttonContents}
-                </button>
-            );
+            inputProps.disabled = true;
         }
+
+        return (
+            <button
+                onClick={this.props.onClick}
+                {...inputProps}>
+
+                {buttonContents}
+            </button>
+        );
     }
 }
 
 Square.propTypes = {
-    displayValue: PropTypes.any.isRequired,
+    displayValue: PropTypes.symbol.isRequired,
     filled: PropTypes.bool.isRequired,
     blocked: PropTypes.bool.isRequired,
     solved: PropTypes.bool.isRequired,
@@ -66,111 +58,105 @@ class Game extends React.Component {
     constructor(props) {
         super(props);
 
-        let solved;
-        if (props.solved &&
-            (props.solved === "true" || props.solved === "1")) {
-            solved = true;
-        } else {
-            solved = false;
-        }
-
         this.state = {
-            code: props.code,
-            solved: solved,
+            code: this.props.code,
+            solved: false,
         };
 
-        // TODO find best practices for this nonsense I'm doing.
+        if (this.props.solved &&
+            (this.props.solved === "true" || this.props.solved === "1")) {
+            this.state.solved = true;
+        }
+
         // TODO specifically the like 10 loops over every square this all requires.
         // there MUST be a better way.
-        let newState;
-        newState = this.decodeSquares();
-        this.state.height = newState.height;
-        this.state.width = newState.width;
-        this.state.size = newState.size;
-        this.state.squares = newState.squares;
+        // TODO I hate this pattern.
+        this.state = {...this.state, ...this.decodeSquares()};
 
         // generate hints,
         // and then force blank rows based on those hints.
-        let hints = this.genHints();
-        this.state.leftHints = hints.leftHints;
-        this.state.topHints = hints.topHints;
-        this.state.maxTopHintSize = hints.maxTopHintSize;
-        this.state.maxLeftHintSize = hints.maxLeftHintSize;
+        this.state = {...this.state, ...this.genHints()};
+        this.state = {...this.state, ...this.setBlockedSections()};
 
-        newState = this.setBlockedSections();
-        this.state.squares = newState.squares;
-
-        // and then reformat hints again.
-        newState = this.setHintsForDisplay();
-        this.state.leftHints = newState.leftHints;
-        this.state.topHints = newState.topHints;
+        // finally,
+        // reformat hints again.
+        this.state = {...this.state, ...this.setHintsForDisplay()};
     }
 
-    handleClick(r, c) {
-        let squares = this.state.squares.slice();
+    decodeSquares() {
+        // base64 -> zip -> string -> object.
+        // also need to un-url-safe-encode in there.
+        let base64BoardDict = this.state.code.replace(/_/g, "/").replace(/-/g, "+");
+        let boardDictZipped = window.atob(base64BoardDict);
+        let boardDictArray = pako.ungzip(boardDictZipped);
 
-        let oldSquare = squares[r][c];
-        let newDisplayIndex = (SQUARE_VALUES_LIST.indexOf(oldSquare.props.displayValue) + 1) %
-            SQUARE_VALUES_LIST.length;
+        // I hate this quote replacing.
+        let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
 
-        squares[r][c] = React.cloneElement(
-            oldSquare,
-            {
-                displayValue: SQUARE_VALUES_LIST[newDisplayIndex],
+        let boardDict = JSON.parse(boardDictString);
+        let height = parseInt(boardDict.height, 10);
+        let width = parseInt(boardDict.width, 10);
+
+        let size = height * width;
+
+        // hex to binary,
+        // which will get us actual cell values.
+        let hexString = boardDict.squares;
+        let unpaddedBinary = "";
+        for (let h = 0; h < hexString.length; h++) {
+            let hexit = hexString[h];
+            // make sure not to put extra padding in from the first digit - padding step below
+            // will take it.
+            let bitString = parseInt(hexit, 16).toString(2);
+            if (h > 0) {
+                unpaddedBinary += bitString.padStart(4, "0");
+            } else {
+                unpaddedBinary += bitString;
             }
-        );
+        }
 
-        this.setState({
+        let paddedBinary = unpaddedBinary.padStart(size, "0");
+
+        let squares = [];
+        let row = [];
+        // python would let me enumerate over the string...
+        for (let i = 0; i < size; i++) {
+            if (i % width === 0 && i !== 0) {
+                squares.push(row);
+                row = [];
+            }
+
+            // convert 1D array index i into 2D indices r and c for convenience.
+            const r = Math.floor(i / width);
+            const c = i % width;
+
+            let filled = paddedBinary[i] === "1";
+            let defaultDisplayValue;
+            if (this.state.solved && filled) {
+                defaultDisplayValue = SQUARE_VALUES.FILLED;
+            } else {
+                defaultDisplayValue = SQUARE_VALUES.EMPTY;
+            }
+
+            row.push(
+                <Square
+                    key={i}
+                    filled={filled}
+                    displayValue={defaultDisplayValue}
+                    blocked={false}
+                    onClick={() => this.handleClick(r, c)}
+                    solved={this.state.solved}
+                />
+            );
+        }
+        squares.push(row);
+
+        return {
+            height: height,
+            width: width,
             squares: squares,
-        });
-    }
-
-    validate() {
-        for (let row of this.state.squares) {
-            for (let square of row) {
-                if ((square.props.filled && square.props.displayValue === SQUARE_VALUES.EMPTY) ||
-                    (!square.props.filled && square.props.displayValue === SQUARE_VALUES.FILLED)) {
-                    this.setState({
-                        validateResult: "No!❌",
-                    });
-                    return;
-                }
-            }
-        }
-
-        this.setState({
-            validateResult: "Yes!✔️",
-        });
-    }
-
-    reset() {
-        if (this.state.solved) {
-            return;
-        }
-
-        let squares = this.state.squares.slice();
-
-        for (let [r, row] of squares.entries()) {
-            for (let [c, square] of row.entries()) {
-                let displayValue;
-                if (square.props.blocked) {
-                    displayValue = SQUARE_VALUES.CROSSED_OFF;
-                } else {
-                    displayValue = SQUARE_VALUES.EMPTY;
-                }
-
-                squares[r][c] = React.cloneElement(
-                    square,
-                    {
-                        displayValue: displayValue,
-                    }
-                );
-            }
-        }
-
-        this.setState({
-            squares: squares,
-        });
+            size: size,
+        };
     }
 
     genHints() {
@@ -260,6 +246,29 @@ class Game extends React.Component {
         };
     }
 
+    setBlockedSections() {
+        let squares = this.state.squares.slice();
+        for (let r = 0; r < this.state.height; r++) {
+            for (let c = 0; c < this.state.width; c++) {
+                // TODO must be a way to do this more nicely.
+                if (this.state.leftHints[r][0] === 0 || this.state.topHints[c][0] === 0) {
+                    let oldSquare = squares[r][c];
+                    squares[r][c] = React.cloneElement(
+                        oldSquare,
+                        {
+                            blocked: true,
+                            displayValue: SQUARE_VALUES.CROSSED_OFF,
+                        }
+                    );
+                }
+            }
+        }
+
+        return {
+            squares: squares,
+        };
+    }
+
     setHintsForDisplay() {
         // we're essentially just padding hints out here.
         // we want all top hints to be arrays of the same length,
@@ -286,6 +295,7 @@ class Game extends React.Component {
             leftHints.push(newHint);
         }
 
+
         // the top hints are... harder.
         let topHints = [...Array(this.state.maxTopHintSize).keys()]
             .map(
@@ -307,110 +317,76 @@ class Game extends React.Component {
         }
 
         return {
-            topHints: topHints,
-            leftHints: leftHints,
+            displayTopHints: topHints,
+            displayLeftHints: leftHints,
         };
     }
 
-    setBlockedSections() {
+    handleClick(r, c) {
         let squares = this.state.squares.slice();
-        for (let r = 0; r < this.state.height; r++) {
-            for (let c = 0; c < this.state.width; c++) {
-                // TODO must be a way to do this more nicely.
-                if (this.state.leftHints[r][0] === 0 || this.state.topHints[c][0] === 0) {
-                    let oldSquare = squares[r][c];
-                    squares[r][c] = React.cloneElement(
-                        oldSquare,
-                        {
-                            blocked: true,
-                            displayValue: SQUARE_VALUES.CROSSED_OFF,
-                        }
-                    );
+
+        let oldSquare = squares[r][c];
+        let newDisplayIndex = (SQUARE_VALUES_LIST.indexOf(oldSquare.props.displayValue) + 1) %
+            SQUARE_VALUES_LIST.length;
+
+        squares[r][c] = React.cloneElement(
+            oldSquare,
+            {
+                displayValue: SQUARE_VALUES_LIST[newDisplayIndex],
+            }
+        );
+
+        this.setState({
+            squares: squares,
+        });
+    }
+
+    validate() {
+        for (let row of this.state.squares) {
+            for (let square of row) {
+                if ((square.props.filled && square.props.displayValue === SQUARE_VALUES.EMPTY) ||
+                    (!square.props.filled && square.props.displayValue === SQUARE_VALUES.FILLED)) {
+                    this.setState({
+                        validateResult: "No!❌",
+                    });
+                    return;
                 }
             }
         }
 
-        return {
-            squares: squares,
-        };
+        this.setState({
+            validateResult: "Yes!✔️",
+        });
     }
 
-    decodeSquares() {
-        // base64 -> zip -> string -> object.
-        // also need to un-url-safe-encode in there.
-        let base64BoardDict = this.state.code.replace(/_/g, "/").replace(/-/g, "+");
-        let boardDictZipped = window.atob(base64BoardDict);
-        let boardDictArray = pako.ungzip(boardDictZipped);
+    reset() {
+        if (this.state.solved) {
+            return;
+        }
 
-        // I hate this quote replacing.
-        let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
+        let squares = this.state.squares.slice();
 
-        let boardDict = JSON.parse(boardDictString);
-        let height = parseInt(boardDict.height, 10);
-        let width = parseInt(boardDict.width, 10);
+        for (let [r, row] of squares.entries()) {
+            for (let [c, square] of row.entries()) {
+                let displayValue;
+                if (square.props.blocked) {
+                    displayValue = SQUARE_VALUES.CROSSED_OFF;
+                } else {
+                    displayValue = SQUARE_VALUES.EMPTY;
+                }
 
-        let size = height * width;
-
-        let hexString = boardDict.squares;
-
-        let unpaddedBinary = "";
-        for (let h = 0; h < hexString.length; h++) {
-            let hexit = hexString[h];
-            // Make sure not to put extra padding in from the first digit - padding step below
-            // will take it.
-            let bitString = parseInt(hexit, 16).toString(2);
-            if (h > 0) {
-                unpaddedBinary += bitString.padStart(4, "0");
-            } else {
-                unpaddedBinary += bitString;
+                squares[r][c] = React.cloneElement(
+                    square,
+                    {
+                        displayValue: displayValue,
+                    }
+                );
             }
         }
 
-        let paddedBinary = unpaddedBinary.padStart(size, "0");
-
-        let squares = [];
-        let row = [];
-        // python would let me enumerate over the string...
-        for (let i = 0; i < size; i++) {
-            let char = paddedBinary[i];
-
-            if (i % width === 0 && i !== 0) {
-                squares.push(row);
-                row = [];
-            }
-
-            // convert 1D array index i into 2D indices r and c for convenience.
-            const r = Math.floor(i / width);
-            const c = i % width;
-
-            let filled = char === "1";
-
-            let defaultDisplayValue;
-            if (this.state.solved && filled) {
-                defaultDisplayValue = SQUARE_VALUES.FILLED;
-            } else {
-                defaultDisplayValue = SQUARE_VALUES.EMPTY;
-            }
-
-            let square = <Square
-                key={i}
-                filled={filled}
-                displayValue={defaultDisplayValue}
-                blocked={false}
-                onClick={() => this.handleClick(r, c)}
-                solved={this.state.solved}
-            />;
-            row.push(square);
-        }
-
-        squares.push(row);
-
-        return {
-            height: height,
-            width: width,
+        this.setState({
             squares: squares,
-            size: size,
-        };
+        });
     }
 
     render() {
@@ -435,7 +411,7 @@ class Game extends React.Component {
         const board = [];
         let gridStart = this.state.maxLeftHintSize;
 
-        for (let hintRow of this.state.topHints) {
+        for (let hintRow of this.state.displayTopHints) {
             let newRow =
                 <ul className="board-row" key={rowIndex}>
                     {hintRow.map((item, itemIndex) => {
@@ -450,9 +426,11 @@ class Game extends React.Component {
                             entryClassName = "board-entry-spacer";
                         }
 
-                        return <li className={entryClassName} key={itemIndex}>
-                            {item}
-                        </li>;
+                        return (
+                            <li className={entryClassName} key={itemIndex}>
+                                {item}
+                            </li>
+                        );
                     })}
                 </ul>;
 
@@ -462,7 +440,7 @@ class Game extends React.Component {
 
         for (let i = 0; i < this.state.height; i++) {
             let entries = [];
-            entries.push(...this.state.leftHints[i]);
+            entries.push(...this.state.displayLeftHints[i]);
             entries.push(...this.state.squares[i]);
 
             let rowClassName;
@@ -475,7 +453,7 @@ class Game extends React.Component {
                 rowClassName = "board-row-spacer";
             }
 
-            let newRow =
+            board.push(
                 <ul className={rowClassName} key={rowIndex}>
                     {entries.map((item, itemIndex) => {
                         let entryClassName;
@@ -489,27 +467,32 @@ class Game extends React.Component {
                             entryClassName = "board-entry-spacer";
                         }
 
-                        return <li className={entryClassName} key={itemIndex}>
-                            {item}
-                        </li>;
+                        return (
+                            <li className={entryClassName} key={itemIndex}>
+                                {item}
+                            </li>
+                        );
                     })}
-                </ul>;
-
-            board.push(newRow);
+                </ul>
+            );
             rowIndex++;
         }
 
         let gameInfo = null;
         if (this.state.solved === false) {
-            gameInfo = <div className="game-info">
-                <div>{reset}</div>
-                <div>
-                    {validate}
+            gameInfo = (
+                <div className="game-info">
+                    <div>
+                        {reset}
+                    </div>
+                    <div>
+                        {validate}
+                    </div>
+                    <div>
+                        {this.state.validateResult}
+                    </div>
                 </div>
-                <div>
-                    {this.state.validateResult}
-                </div>
-            </div>;
+            );
         }
 
         return (
