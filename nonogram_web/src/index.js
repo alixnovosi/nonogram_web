@@ -54,6 +54,99 @@ Square.propTypes = {
     onClick: PropTypes.func.isRequired
 };
 
+class Board extends React.Component {
+    render() {
+        // the nonogram grid should be broken into segments this big by this big,
+        // for readability.
+        const gridBreak = 5;
+
+        // combine hints and squares into a single array,
+        // so that we can cleanly give each row keys.
+        let rowIndex = 0;
+        let board = [];
+        let gridStart = this.props.maxLeftHintSize;
+
+        for (let hintRow of this.props.displayTopHints) {
+            board.push(
+                <ul className="board-row" key={rowIndex}>
+                    {hintRow.map((item, itemIndex) => {
+                        let entryClassName;
+                        if ((itemIndex - gridStart) <= 0 ||
+                            itemIndex === (hintRow.size - 1) ||
+                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
+
+                            entryClassName = "board-entry";
+
+                        } else {
+                            entryClassName = "board-entry-spacer";
+                        }
+
+                        return (
+                            <li className={entryClassName} key={itemIndex}>
+                                {item}
+                            </li>
+                        );
+                    })}
+                </ul>
+            );
+            rowIndex++;
+        }
+
+        for (let i = 0; i < this.props.height; i++) {
+            let entries = [];
+            entries.push(...this.props.displayLeftHints[i]);
+            entries.push(...this.props.squares[i]);
+
+            let rowClassName;
+            let squareRowIndex = rowIndex - this.props.maxTopHintSize;
+            if (squareRowIndex === 0 ||
+                squareRowIndex === this.props.height - 1 ||
+                (squareRowIndex+1) % gridBreak !== 0) {
+                rowClassName = "board-row";
+            } else {
+                rowClassName = "board-row-spacer";
+            }
+
+            board.push(
+                <ul className={rowClassName} key={rowIndex}>
+                    {entries.map((item, itemIndex) => {
+                        let entryClassName;
+                        if ((itemIndex - gridStart) <= 0 ||
+                            itemIndex === (entries.size - 1) ||
+                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
+
+                            entryClassName = "board-entry";
+
+                        } else {
+                            entryClassName = "board-entry-spacer";
+                        }
+
+                        return (
+                            <li className={entryClassName} key={itemIndex}>
+                                {item}
+                            </li>
+                        );
+                    })}
+                </ul>
+            );
+            rowIndex++;
+        }
+
+        return board;
+    }
+}
+
+Board.propTypes = {
+    height: PropTypes.number.isRequired,
+    width: PropTypes.number.isRequired,
+    size: PropTypes.number.isRequired,
+    squares: PropTypes.array.isRequired,
+    displayTopHints: PropTypes.array.isRequired,
+    displayLeftHints: PropTypes.array.isRequired,
+    maxTopHintSize: PropTypes.number.isRequired,
+    maxLeftHintSize: PropTypes.number.isRequired,
+};
+
 class Game extends React.Component {
     constructor(props) {
         super(props);
@@ -79,28 +172,48 @@ class Game extends React.Component {
         this.state = {...this.state, ...this.setBlockedSections()};
 
         // finally,
-        // reformat hints again.
+        // reformat display hints.
         this.state = {...this.state, ...this.setHintsForDisplay()};
     }
 
     decodeSquares() {
-        // base64 -> zip -> string -> object.
+        // base64url_safe -> base64 -> zip -> array.
         // also need to un-url-safe-encode in there.
         let base64BoardDict = this.state.code.replace(/_/g, "/").replace(/-/g, "+");
-        let boardDictZipped = window.atob(base64BoardDict);
+
+        let boardDictZipped;
+        try {
+            boardDictZipped = window.atob(base64BoardDict);
+        } catch (err) {
+            // TODO more robust error handling.
+            // only case we handle now is messed up query params putting an extra ? in.
+            let start = base64BoardDict.indexOf("?");
+            boardDictZipped = window.atob(base64BoardDict.slice(0, start));
+        }
+
         let boardDictArray = pako.ungzip(boardDictZipped);
 
         // I hate this quote replacing.
         let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
 
+        // quote_replaced_string -> obj
         let boardDict = JSON.parse(boardDictString);
+
         let height = parseInt(boardDict.height, 10);
         let width = parseInt(boardDict.width, 10);
 
+        // we need the size separately because the encoding on the other end
+        // can lose digits when it encodes the board as a hex string.
+        // that SHOULD be redone,
+        // but until I get around to it,
+        // we have to do this.
         let size = height * width;
 
         // hex to binary,
         // which will get us actual cell values.
+        // TODO I think we can do this and the next loop in one loop if we're clever and careful.
+        // need to keep in mind that the hex string is going to be 1-3 digits short,
+        // which is one messed-up hex digit's worth.
         let hexString = boardDict.squares;
         let unpaddedBinary = "";
         for (let h = 0; h < hexString.length; h++) {
@@ -154,8 +267,8 @@ class Game extends React.Component {
         return {
             height: height,
             width: width,
-            squares: squares,
             size: size,
+            squares: squares,
         };
     }
 
@@ -390,10 +503,6 @@ class Game extends React.Component {
     }
 
     render() {
-        // the nonogram grid should be broken into segments this big by this big,
-        // for readability.
-        const gridBreak = 5;
-
         const reset =
             <button onClick={() => this.reset()}>
                 Reset
@@ -403,80 +512,6 @@ class Game extends React.Component {
             <button onClick={() => this.validate()}>
                 Validate
             </button>;
-
-        // TODO push back down into a board class.
-        // combine hints and squares into a single array,
-        // so that we can cleanly give each row keys.
-        let rowIndex = 0;
-        const board = [];
-        let gridStart = this.state.maxLeftHintSize;
-
-        for (let hintRow of this.state.displayTopHints) {
-            let newRow =
-                <ul className="board-row" key={rowIndex}>
-                    {hintRow.map((item, itemIndex) => {
-                        let entryClassName;
-                        if ((itemIndex - gridStart) <= 0 ||
-                            itemIndex === (hintRow.size - 1) ||
-                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
-
-                            entryClassName = "board-entry";
-
-                        } else {
-                            entryClassName = "board-entry-spacer";
-                        }
-
-                        return (
-                            <li className={entryClassName} key={itemIndex}>
-                                {item}
-                            </li>
-                        );
-                    })}
-                </ul>;
-
-            board.push(newRow);
-            rowIndex++;
-        }
-
-        for (let i = 0; i < this.state.height; i++) {
-            let entries = [];
-            entries.push(...this.state.displayLeftHints[i]);
-            entries.push(...this.state.squares[i]);
-
-            let rowClassName;
-            let squareRowIndex = rowIndex - this.state.maxTopHintSize;
-            if (squareRowIndex === 0 ||
-                squareRowIndex === this.state.height - 1 ||
-                (squareRowIndex+1) % gridBreak !== 0) {
-                rowClassName = "board-row";
-            } else {
-                rowClassName = "board-row-spacer";
-            }
-
-            board.push(
-                <ul className={rowClassName} key={rowIndex}>
-                    {entries.map((item, itemIndex) => {
-                        let entryClassName;
-                        if ((itemIndex - gridStart) <= 0 ||
-                            itemIndex === (entries.size - 1) ||
-                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
-
-                            entryClassName = "board-entry";
-
-                        } else {
-                            entryClassName = "board-entry-spacer";
-                        }
-
-                        return (
-                            <li className={entryClassName} key={itemIndex}>
-                                {item}
-                            </li>
-                        );
-                    })}
-                </ul>
-            );
-            rowIndex++;
-        }
 
         let gameInfo = null;
         if (this.state.solved === false) {
@@ -498,7 +533,16 @@ class Game extends React.Component {
         return (
             <div className="game">
                 <div className="game-board">
-                    {board}
+                    <Board
+                        squares={this.state.squares}
+                        height={this.state.height}
+                        width={this.state.width}
+                        size={this.state.size}
+                        displayTopHints={this.state.displayTopHints}
+                        displayLeftHints={this.state.displayLeftHints}
+                        maxTopHintSize={this.state.maxTopHintSize}
+                        maxLeftHintSize={this.state.maxLeftHintSize}
+                    />
                 </div>
                 {gameInfo}
             </div>
