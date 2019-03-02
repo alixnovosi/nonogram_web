@@ -15,6 +15,9 @@ const SQUARE_VALUES_LIST = [
     SQUARE_VALUES.FILLED,
     SQUARE_VALUES.CROSSED_OFF];
 
+// the nonogram grid should be broken into segments this big by this big for readability.
+const gridBreak = 5;
+
 class Square extends React.Component {
     render() {
         const value = this.props.displayValue;
@@ -56,16 +59,13 @@ Square.propTypes = {
 
 class Board extends React.Component {
     render() {
-        // the nonogram grid should be broken into segments this big by this big,
-        // for readability.
-        const gridBreak = 5;
-
         // combine hints and squares into a single array,
         // so that we can cleanly give each row keys.
+        // manually track rowIndex so we can use it for modding,
+        // and set indices correctly in the ul.
         let rowIndex = 0;
         let board = [];
         let gridStart = this.props.maxLeftHintSize;
-
         for (let hintRow of this.props.displayTopHints) {
             board.push(
                 <ul className="board-row" key={rowIndex}>
@@ -76,7 +76,6 @@ class Board extends React.Component {
                             ((itemIndex+1) - gridStart) % gridBreak !== 0) {
 
                             entryClassName = "board-entry";
-
                         } else {
                             entryClassName = "board-entry-spacer";
                         }
@@ -92,13 +91,16 @@ class Board extends React.Component {
             rowIndex++;
         }
 
-        for (let i = 0; i < this.props.height; i++) {
+        for (let [r, row] of this.props.squares.entries()) {
             let entries = [];
-            entries.push(...this.props.displayLeftHints[i]);
-            entries.push(...this.props.squares[i]);
+            entries.push(...this.props.displayLeftHints[r]);
+            entries.push(...row);
 
-            let rowClassName;
+            // we didn't add spacer rows in the hints because there's no reason to do that.
+            // that means our rowIndex is off now and won't space correctly at gridBreak points.
+            // so correct for that here.
             let squareRowIndex = rowIndex - this.props.maxTopHintSize;
+            let rowClassName;
             if (squareRowIndex === 0 ||
                 squareRowIndex === this.props.height - 1 ||
                 (squareRowIndex+1) % gridBreak !== 0) {
@@ -116,7 +118,6 @@ class Board extends React.Component {
                             ((itemIndex+1) - gridStart) % gridBreak !== 0) {
 
                             entryClassName = "board-entry";
-
                         } else {
                             entryClassName = "board-entry-spacer";
                         }
@@ -171,31 +172,30 @@ class Game extends React.Component {
 
         // finally,
         // reformat display hints.
-        this.state = {...this.state, ...this.setHintsForDisplay()};
+        this.state = {...this.state, ...this.genDisplayHints()};
     }
 
     decodeSquares() {
-        // base64url_safe -> base64 -> zip -> array.
-        // also need to un-url-safe-encode in there.
-        let base64BoardDict = this.state.code.replace(/_/g, "/").replace(/-/g, "+");
+        let base64Blob =
+            this.state.code.replace(/_/g, "/").replace(/-/g, "+");
 
-        let boardDictZipped;
+        let zipped;
         try {
-            boardDictZipped = window.atob(base64BoardDict);
+            zipped = window.atob(base64Blob);
         } catch (err) {
             // TODO more robust error handling.
             // only case we handle now is messed up query params putting an extra ? in.
-            let start = base64BoardDict.indexOf("?");
-            boardDictZipped = window.atob(base64BoardDict.slice(0, start));
+            let start = base64Blob.indexOf("?");
+            zipped = window.atob(base64Blob.slice(0, start));
         }
 
-        let boardDictArray = pako.ungzip(boardDictZipped);
-
         // I hate this quote replacing.
-        let boardDictString = new TextDecoder("utf-8").decode(boardDictArray).replace(/'/g, "\"");
-
-        // quote_replaced_string -> obj
-        let boardDict = JSON.parse(boardDictString);
+        let boardDict =
+            JSON.parse(new TextDecoder("utf-8")
+                .decode(
+                    pako.ungzip(zipped)
+                ).replace(/'/g, "\"")
+            );
 
         // we need the size separately because the encoding on the other end
         // can lose digits when it encodes the board as a hex string.
@@ -206,33 +206,21 @@ class Game extends React.Component {
         let width = parseInt(boardDict.width, 10);
         let size = height * width;
 
-        // hex to binary,
-        // which will get us actual cell values.
-        let hexString = boardDict.squares;
-
         // okay.
         // so what we're doing here,
         // is reading each hex digit out,
         // converting it to the four squares it represents,
-        // and filling that square.
-        // but we do it with a 2D loop over the squares,
-        // because that seemed convenient.
-        let squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
+        // and filling those four squares.
+        // mapping from a 1D string representing 4-digit chunks to a 2D array,
+        // it's weird
+        let hexString = boardDict.squares;
         let i = size-1;
-        let lastHIndex = null;
-        let hChunk;
-        for (let r = height-1; r >= 0; r--) {
-            for (let c = width-1; c >= 0; c--) {
-                let hIndex = hexString.length - Math.floor((size - i - 1) / 4) - 1;
-                if (hIndex !== lastHIndex) {
-                    hChunk = parseInt(hexString[hIndex], 16).toString(2).padStart(4, "0");
-                    lastHIndex = hIndex;
-                }
+        let squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
+        for (let h = hexString.length-1; h >= 0; h--) {
 
-                let hChunkIndex = (4 - ((size - i - 1) % 4)) - 1;
-                let value = hChunk[hChunkIndex];
-                let filled = value === "1";
-
+            let binChunk = parseInt(hexString[h], 16).toString(2).padStart(4, "0");
+            for (var j = 3; j >= 0; j--) {
+                let filled = binChunk[j] === "1";
                 let defaultDisplayValue;
                 if (this.state.solved && filled) {
                     defaultDisplayValue = SQUARE_VALUES.FILLED;
@@ -240,6 +228,8 @@ class Game extends React.Component {
                     defaultDisplayValue = SQUARE_VALUES.EMPTY;
                 }
 
+                let r = Math.floor(i / width);
+                let c = i % width;
                 squares[r][c] =
                     <Square
                         key={i}
@@ -251,6 +241,9 @@ class Game extends React.Component {
                     />;
 
                 i--;
+                if (i < 0) {
+                    break;
+                }
             }
         }
 
@@ -268,74 +261,76 @@ class Game extends React.Component {
 
         // calculate max top/left hints as we go,
         // so we don't have to do it later.
+        // this is used for formatting the hints.
         // we set to 1 because if we have all empty rows or columns or both,
         // these will never be set.
         let maxTopHintSize = 1;
         let maxLeftHintSize = 1;
 
         // generate hints by counting squares in each row and column.
+        // if we encounter an empty square while having a count,
+        // add that as a hint.
         // empty columns are handled in a later step.
         let colCounts = Array(this.state.width).fill(0);
         for (let [r, row] of this.state.squares.entries()) {
             let rowCount = 0;
 
             for (let [c, square] of row.entries()) {
-
                 if (square.props.filled) {
                     rowCount += 1;
                     colCounts[c] += 1;
                 } else {
                     if (colCounts[c] > 0) {
                         topHints[c].push(colCounts[c]);
+                        colCounts[c] = 0;
 
                         // when pushing new top hints,
                         // check if we have a new largest top hint.
                         if (topHints[c].length > maxTopHintSize) {
                             maxTopHintSize = topHints[c].length;
                         }
-
-                        colCounts[c] = 0;
                     }
 
                     if (rowCount > 0) {
                         leftHints[r].push(rowCount);
+                        rowCount = 0;
 
                         // do this for left hints as well.
                         if (leftHints[r].length > maxLeftHintSize) {
                             maxLeftHintSize = leftHints[r].length;
                         }
-
-                        rowCount = 0;
                     }
                 }
             }
 
-            // Finish row.
+            // handle still having a cell count at end of row.
             if (rowCount > 0) {
                 leftHints[r].push(rowCount);
 
+                // one more max hint size check.
                 if (leftHints[r].length > maxLeftHintSize) {
                     maxLeftHintSize = leftHints[r].length;
                 }
             }
 
-            // Handle empty row.
+            // handle empty row.
             if (leftHints[r].length === 0) {
                 leftHints[r].push(0);
             }
         }
 
-        // Handle last column.
-        for (let c = 0; c < this.state.width; c++) {
-            if (colCounts[c] > 0) {
-                topHints[c].push(colCounts[c]);
+        // handle any leftover column counts uncounted due to not finding an empty square.
+        for (let [c, colCount] of colCounts.entries()) {
+            if (colCount > 0) {
+                topHints[c].push(colCount);
 
+                // and one more max hint size check here.
                 if (topHints[c].length > maxTopHintSize) {
                     maxTopHintSize = topHints[c].length;
                 }
             }
 
-            // Handle empty columns.
+            // handle empty columns.
             if (topHints[c].length === 0) {
                 topHints[c].push(0);
             }
@@ -351,13 +346,14 @@ class Game extends React.Component {
 
     setBlockedSections() {
         let squares = this.state.squares.slice();
-        for (let r = 0; r < this.state.height; r++) {
-            for (let c = 0; c < this.state.width; c++) {
+        for (let [r, row] of squares.entries()) {
+            for (let [c, square] of row.entries()) {
                 // TODO must be a way to do this more nicely.
-                if (this.state.leftHints[r][0] === 0 || this.state.topHints[c][0] === 0) {
-                    let oldSquare = squares[r][c];
+                if (this.state.leftHints[r][0] === 0 ||
+                    this.state.topHints[c][0] === 0) {
+
                     squares[r][c] = React.cloneElement(
-                        oldSquare,
+                        square,
                         {
                             blocked: true,
                             displayValue: SQUARE_VALUES.CROSSED_OFF,
@@ -372,11 +368,10 @@ class Game extends React.Component {
         };
     }
 
-    setHintsForDisplay() {
+    genDisplayHints() {
         // we're essentially just padding hints out here.
         // we want all top hints to be arrays of the same length,
         // and we want all left hints to be arrays of the same length.
-
         // ADDITIONALLY,
         // we want top hints to be padded out by the size of the left hints,
         // so that they align with the board,
@@ -385,29 +380,28 @@ class Game extends React.Component {
         // we also want the top hints rearranged into rows,
         // not columns.
 
-        // the left hints are easy,
-        // they just need the first kind of padding.
-        let leftHints = [];
+        let displayLeftHints = [];
         for (let hint of this.state.leftHints) {
             let newHint = [];
             if (hint.length < this.state.maxLeftHintSize) {
-                newHint.push(...Array(this.state.maxLeftHintSize - hint.length).fill(null));
+                newHint
+                    .push(...Array(this.state.maxLeftHintSize - hint.length)
+                        .fill(null));
             }
             newHint.push(...hint);
 
-            leftHints.push(newHint);
+            displayLeftHints.push(newHint);
         }
 
-
-        // the top hints are... harder.
-        let topHints = [...Array(this.state.maxTopHintSize).keys()]
+        let displayTopHints = [...Array(this.state.maxTopHintSize).keys()]
             .map(
                 () => Array(this.state.maxLeftHintSize).fill(null)
             );
         for (let hintCol of this.state.topHints) {
             let paddedHintCol = [];
             if (hintCol.length < this.state.maxTopHintSize) {
-                paddedHintCol.push(...Array(this.state.maxTopHintSize - hintCol.length).fill(null));
+                paddedHintCol.push(...Array(this.state.maxTopHintSize - hintCol.length)
+                    .fill(null));
             }
             paddedHintCol.push(...hintCol);
 
@@ -415,13 +409,13 @@ class Game extends React.Component {
             // we want to rearrange the top hints from "vertical" arrays to "horizontal",
             // to make displaying them more straightforward.
             for (let [h, hint] of paddedHintCol.entries()) {
-                topHints[h].push(hint);
+                displayTopHints[h].push(hint);
             }
         }
 
         return {
-            displayTopHints: topHints,
-            displayLeftHints: leftHints,
+            displayTopHints: displayTopHints,
+            displayLeftHints: displayLeftHints,
         };
     }
 
@@ -429,13 +423,15 @@ class Game extends React.Component {
         let squares = this.state.squares.slice();
 
         let oldSquare = squares[r][c];
-        let newDisplayIndex = (SQUARE_VALUES_LIST.indexOf(oldSquare.props.displayValue) + 1) %
-            SQUARE_VALUES_LIST.length;
+        let newDisplayValue = SQUARE_VALUES_LIST[
+            (SQUARE_VALUES_LIST.indexOf(oldSquare.props.displayValue) + 1)
+                % SQUARE_VALUES_LIST.length
+        ];
 
         squares[r][c] = React.cloneElement(
             oldSquare,
             {
-                displayValue: SQUARE_VALUES_LIST[newDisplayIndex],
+                displayValue: newDisplayValue,
             }
         );
 
@@ -548,8 +544,7 @@ Game.propTypes = {
     squares: PropTypes.array,
 };
 
-// ========================================
-
+// =======================================================================================
 let PARAMS = queryString.parse(window.location.search);
 let BOARD_CODE = PARAMS.board;
 let SOLVED = PARAMS.solved;
