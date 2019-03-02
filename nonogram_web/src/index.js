@@ -161,8 +161,6 @@ class Game extends React.Component {
             this.state.solved = true;
         }
 
-        // TODO specifically the like 10 loops over every square this all requires.
-        // there MUST be a better way.
         // TODO I hate this pattern.
         this.state = {...this.state, ...this.decodeSquares()};
 
@@ -199,27 +197,26 @@ class Game extends React.Component {
         // quote_replaced_string -> obj
         let boardDict = JSON.parse(boardDictString);
 
-        let height = parseInt(boardDict.height, 10);
-        let width = parseInt(boardDict.width, 10);
-
         // we need the size separately because the encoding on the other end
         // can lose digits when it encodes the board as a hex string.
         // that SHOULD be redone,
         // but until I get around to it,
         // we have to do this.
+        let height = parseInt(boardDict.height, 10);
+        let width = parseInt(boardDict.width, 10);
         let size = height * width;
 
         // hex to binary,
         // which will get us actual cell values.
-        // TODO I think we can do this and the next loop in one loop if we're clever and careful.
-        // need to keep in mind that the hex string is going to be 1-3 digits short,
-        // which is one messed-up hex digit's worth.
         let hexString = boardDict.squares;
 
-        // we should be able to just have a reverse index,
-        // and if it's below zero,
-        // just fill out zeroes,
-        // because we know we ran out of hex digits.
+        // okay.
+        // so what we're doing here,
+        // is reading each hex digit out,
+        // converting it to the four squares it represents,
+        // and filling that square.
+        // but we do it with a 2D loop over the squares,
+        // because that seemed convenient.
         let squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
         let i = size-1;
         let lastHIndex = null;
@@ -256,55 +253,6 @@ class Game extends React.Component {
                 i--;
             }
         }
-        // // figure out if we have a front section we need to fix.
-        // let unpaddedBinary = "";
-        // for (let h = 0; h < hexString.length; h++) {
-        //     let hexit = hexString[h];
-        //     // make sure not to put extra padding in from the first digit - padding step below
-        //     // will take it.
-        //     let bitString = parseInt(hexit, 16).toString(2);
-        //     if (h > 0) {
-        //         unpaddedBinary += bitString.padStart(4, "0");
-        //     } else {
-        //         unpaddedBinary += bitString;
-        //     }
-        // }
-        //
-        // let paddedBinary = unpaddedBinary.padStart(size, "0");
-        //
-        // let squares = [];
-        // let row = [];
-        // // python would let me enumerate over the string...
-        // for (let i = 0; i < size; i++) {
-        //     if (i % width === 0 && i !== 0) {
-        //         squares.push(row);
-        //         row = [];
-        //     }
-        //
-        //     // convert 1D array index i into 2D indices r and c for convenience.
-        //     const r = Math.floor(i / width);
-        //     const c = i % width;
-        //
-        //     let filled = paddedBinary[i] === "1";
-        //     let defaultDisplayValue;
-        //     if (this.state.solved && filled) {
-        //         defaultDisplayValue = SQUARE_VALUES.FILLED;
-        //     } else {
-        //         defaultDisplayValue = SQUARE_VALUES.EMPTY;
-        //     }
-        //
-        //     row.push(
-        //         <Square
-        //             key={i}
-        //             filled={filled}
-        //             displayValue={defaultDisplayValue}
-        //             blocked={false}
-        //             onClick={() => this.handleClick(r, c)}
-        //             solved={this.state.solved}
-        //         />
-        //     );
-        // }
-        // squares.push(row);
 
         return {
             height: height,
