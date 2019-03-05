@@ -10,12 +10,21 @@ if (PARAMS.board instanceof Array) {
 else {
     BOARD_CODE = PARAMS.board;
 }
-var SOLVED;
+var QUERY_SOLVED;
 if (PARAMS.solved instanceof Array) {
-    SOLVED = PARAMS.solved[0];
+    QUERY_SOLVED = PARAMS.solved[0];
 }
 else {
-    SOLVED = PARAMS.solved;
+    QUERY_SOLVED = PARAMS.solved;
 }
-var BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
-ReactDOM.render(BOARD, document.getElementById("root"));
+var SOLVED = false;
+if (QUERY_SOLVED &&
+    (QUERY_SOLVED === "true" || QUERY_SOLVED === "1")) {
+    SOLVED = true;
+}
+// no point rendering if there is no code.
+// TODO put up a nice message or something if there isn't code.
+if (BOARD_CODE) {
+    var BOARD = React.createElement(Game, { code: BOARD_CODE, solved: SOLVED });
+    ReactDOM.render(BOARD, document.getElementById("root"));
+}

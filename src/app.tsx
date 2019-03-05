@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom";
 import * as QueryString from "query-string";
 import Game from "./NonogramWeb";
 
-let PARAMS = QueryString.parse(window.location.search);
+const PARAMS = QueryString.parse(window.location.search);
 let BOARD_CODE;
 if (PARAMS.board instanceof Array) {
     BOARD_CODE = PARAMS.board[0];
@@ -11,15 +11,23 @@ if (PARAMS.board instanceof Array) {
     BOARD_CODE = PARAMS.board;
 }
 
-let SOLVED;
+let QUERY_SOLVED
 if (PARAMS.solved instanceof Array) {
-    SOLVED = PARAMS.solved[0];
+    QUERY_SOLVED= PARAMS.solved[0];
 } else {
-    SOLVED = PARAMS.solved;
+    QUERY_SOLVED = PARAMS.solved;
 }
 
+let SOLVED = false;
+if (QUERY_SOLVED &&
+    (QUERY_SOLVED === "true" || QUERY_SOLVED === "1")) {
+    SOLVED = true;
+}
+
+// no point rendering if there is no code.
+// TODO put up a nice message or something if there isn't code.
 if (BOARD_CODE) {
-    let BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
+    const BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
 
     ReactDOM.render(
         BOARD,

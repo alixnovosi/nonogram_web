@@ -1,19 +1,38 @@
 {
-  "compilerOptions": {
-    "allowJs": true,
-    "jsx": "preserve",
-    "outDir": "./dist",
-    "module": "es6",
-    "moduleResolution": "node",
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "target": "es2016",
-    "types": []
-  },
-  "include": [
-    "src/*"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+    "awesomeTypescriptLoaderOptions": {
+        "useBabel": true,
+        "babelOptions": {
+            "babelrc": false
+        },
+        "babelCore": "@babel/core"
+    },
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "downlevelIteration": true,
+        "forceConsistentCasingInFileNames": true,
+        "jsx": "react",
+        "lib": [
+            "dom",
+            "es6"
+        ],
+        "module": "es6",
+        "moduleResolution": "node",
+        "newLine": "lf",
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "outDir": "./dist",
+        "plugins": [
+                { "name": "@fimbul/mithotyn" }
+        ],
+        "strict": true,
+        "target": "es5",
+        "types": []
+    },
+    "include": [
+        "src/*"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
 }

@@ -1,23 +1,33 @@
-var path = require("path");
+const { CheckerPlugin } = require('awesome-typescript-loader')
 
 var config = {
-    entry: "./src/app.tsx",
-    devtool: "inline-source-map",
+    devtool: "source-map",
+    entry: [
+        "./src/app.tsx",
+    ],
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                loader: "ts-loader",
-                exclude: /node_modules/
+                loader: "awesome-typescript-loader",
+                exclude: /node_modules/,
+            },
+            {
+                "enforce": "pre",
+                "test": /\.js$/,
+                "loader": "source-map-loader",
             }
         ],
     },
     output: {
         filename: "main.js",
-        path: path.resolve(__dirname, "dist"),
+        path: __dirname + "/dist",
     },
+    plugins: [
+        new CheckerPlugin()
+    ],
     resolve: {
-        extensions: [".tsx", ".ts", ".js"]
+        extensions: [".tsx", ".ts", ".js", "json"],
     }
 };
 
