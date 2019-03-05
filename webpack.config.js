@@ -28,7 +28,8 @@ var config = {
     ],
     resolve: {
         extensions: [".tsx", ".ts", ".js", "json"],
-    }
+    },
+    target: "web",
 };
 
 module.exports = config;
