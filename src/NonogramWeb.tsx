@@ -1,32 +1,45 @@
-import React from "react";
-import ReactDOM from "react-dom";
-import pako from "pako";
-import queryString from "query-string";
-import PropTypes from "prop-types";
-
-const SQUARE_VALUES = Object.freeze({
-    EMPTY: Symbol("Empty"),
-    FILLED: Symbol("Filled"),
-    CROSSED_OFF: Symbol("CrossedOff"),
-});
-
-const SQUARE_VALUES_LIST = [
-    SQUARE_VALUES.EMPTY,
-    SQUARE_VALUES.FILLED,
-    SQUARE_VALUES.CROSSED_OFF];
+import * as Pako from "pako";
+import * as React from "react";
 
 // the nonogram grid should be broken into segments this big by this big for readability.
-const gridBreak = 5;
+const GRID_BREAK = 5;
 
-class Square extends React.Component {
-    render() {
+// this seemed like the easiest way to later iterate through the enum values.
+// I don't intend on changing the values,
+// so this seems fine.
+const SQUARE_VALUES_NUM = 3;
+enum SquareValue {
+    CrossedOff = 0,
+    Empty = 1,
+    Filled = 2,
+}
+
+interface SquareProps {
+    blocked: boolean;
+    filled: boolean;
+    solved: boolean;
+
+    displayValue: SquareValue;
+
+    onClick: () => void;
+
+    key: number,
+    children?: React.ReactNode;
+}
+
+class Square extends React.Component<SquareProps, {}> {
+    public constructor(props : SquareProps) {
+        super(props)
+    }
+
+    public render() {
         const value = this.props.displayValue;
-        const buttonContents = value === SQUARE_VALUES.CROSSED_OFF ? "X" : null;
+        const buttonContents = value === SquareValue.CrossedOff ? "X" : null;
 
-        let inputProps = {};
-        if (value === SQUARE_VALUES.FILLED) {
+        const inputProps : { [key:string]:any; } = {};
+        if (value === SquareValue.Filled) {
             inputProps.className = "filled-square";
-        } else if (value === SQUARE_VALUES.EMPTY) {
+        } else if (value === SquareValue.Empty) {
             inputProps.className = "empty-square";
         } else if (this.props.blocked) {
             inputProps.className = "force-blocked-square";
@@ -49,34 +62,38 @@ class Square extends React.Component {
     }
 }
 
-Square.propTypes = {
-    displayValue: PropTypes.symbol.isRequired,
-    filled: PropTypes.bool.isRequired,
-    blocked: PropTypes.bool.isRequired,
-    solved: PropTypes.bool.isRequired,
-    onClick: PropTypes.func.isRequired
+interface BoardProps {
+    height: number;
+    width: number;
+    size: number;
+    squares: Square[][];
+
+    displayLeftHints: string[][];
+    displayTopHints: string[][];
+
+    maxLeftHintSize: number;
+    maxTopHintSize: number;
+
+    children?: React.ReactNode;
 };
 
-class Board extends React.Component {
-    render() {
+class Board extends React.Component<BoardProps, {}> {
+    public render() {
         // combine hints and squares into a single array,
         // so that we can cleanly give each row keys.
         // manually track rowIndex so we can use it for modding,
         // and set indices correctly in the ul.
         let rowIndex = 0;
-        let board = [];
-        let gridStart = this.props.maxLeftHintSize;
-        for (let hintRow of this.props.displayTopHints) {
+        const board : JSX.Element[] = [];
+        const gridStart = this.props.maxLeftHintSize;
+        for (const hintRow of this.props.displayTopHints) {
             board.push(
                 <ul className="board-row" key={rowIndex}>
                     {hintRow.map((item, itemIndex) => {
-                        let entryClassName;
-                        if ((itemIndex - gridStart) <= 0 ||
-                            itemIndex === (hintRow.size - 1) ||
-                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
-
-                            entryClassName = "board-entry";
-                        } else {
+                        let entryClassName = "board-entry";
+                        if ((itemIndex - gridStart) > 0 &&
+                            itemIndex !== (hintRow.length - 1) &&
+                            ((itemIndex+1) - gridStart) % GRID_BREAK === 0) {
                             entryClassName = "board-entry-spacer";
                         }
 
@@ -91,40 +108,38 @@ class Board extends React.Component {
             rowIndex++;
         }
 
-        for (let [r, row] of this.props.squares.entries()) {
-            let entries = [];
-            entries.push(...this.props.displayLeftHints[r]);
-            entries.push(...row);
-
+        for (const [r, row] of this.props.squares.entries()) {
             // we didn't add spacer rows in the hints because there's no reason to do that.
-            // that means our rowIndex is off now and won't space correctly at gridBreak points.
+            // that means our rowIndex is off now and won't space correctly at GRID_BREAK points.
             // so correct for that here.
-            let squareRowIndex = rowIndex - this.props.maxTopHintSize;
-            let rowClassName;
-            if (squareRowIndex === 0 ||
-                squareRowIndex === this.props.height - 1 ||
-                (squareRowIndex+1) % gridBreak !== 0) {
-                rowClassName = "board-row";
-            } else {
+            const squareRowIndex = rowIndex - this.props.maxTopHintSize;
+            let rowClassName = "board-row";
+            if (squareRowIndex !== 0 &&
+                squareRowIndex !== this.props.height - 1 &&
+                (squareRowIndex+1) % GRID_BREAK === 0) {
                 rowClassName = "board-row-spacer";
             }
 
             board.push(
                 <ul className={rowClassName} key={rowIndex}>
-                    {entries.map((item, itemIndex) => {
-                        let entryClassName;
-                        if ((itemIndex - gridStart) <= 0 ||
-                            itemIndex === (entries.size - 1) ||
-                            ((itemIndex+1) - gridStart) % gridBreak !== 0) {
-
-                            entryClassName = "board-entry";
-                        } else {
+                    {this.props.displayLeftHints[r].map((item, itemIndex) => {
+                        return (
+                            <li className="board-entry" key={itemIndex}>
+                                {item}
+                            </li>
+                        );
+                    })}
+                    {row.map((item, itemIndex) => {
+                        let entryClassName = "board-entry";
+                        if (itemIndex !== 0 &&
+                            itemIndex !== (row.length - 1) &&
+                            (itemIndex+1) % GRID_BREAK === 0) {
                             entryClassName = "board-entry-spacer";
                         }
 
                         return (
                             <li className={entryClassName} key={itemIndex}>
-                                {item}
+                                <Square {...item.props}/>
                             </li>
                         );
                     })}
@@ -137,47 +152,66 @@ class Board extends React.Component {
     }
 }
 
-Board.propTypes = {
-    height: PropTypes.number.isRequired,
-    width: PropTypes.number.isRequired,
-    size: PropTypes.number.isRequired,
-    squares: PropTypes.array.isRequired,
-    displayTopHints: PropTypes.array.isRequired,
-    displayLeftHints: PropTypes.array.isRequired,
-    maxTopHintSize: PropTypes.number.isRequired,
-    maxLeftHintSize: PropTypes.number.isRequired,
-};
+interface GameProps {
+    code: string;
+    solved: boolean;
 
-class Game extends React.Component {
-    constructor(props) {
+    children?: React.ReactNode;
+}
+
+interface GameState {
+    code: string;
+    solved: boolean;
+
+    validateResult: string;
+
+    displayLeftHints: string[][];
+    displayTopHints: string[][];
+    leftHints: number[][];
+    topHints: number[][];
+
+    maxLeftHintSize: number;
+    maxTopHintSize: number;
+
+    squares: Square[][];
+
+    height: number;
+    size: number;
+    width: number;
+}
+
+class Game extends React.Component<GameProps, GameState> {
+    constructor(props : GameProps) {
         super(props);
 
         this.state = {
-            code: this.props.code,
-            solved: false,
-        };
+                code: this.props.code,
+                solved: this.props.solved,
+                validateResult: "No!❌",
 
-        if (this.props.solved &&
-            (this.props.solved === "true" || this.props.solved === "1")) {
-            this.state.solved = true;
-        }
+                displayLeftHints: [],
+                displayTopHints: [],
+                leftHints: [],
+                topHints: [],
 
+                maxLeftHintSize: 1,
+                maxTopHintSize: 1,
+
+                squares: [],
+
+                height: 0,
+                size: 0,
+                width: 0,
+            };
         // TODO I hate this pattern.
-        this.state = {...this.state, ...this.decodeSquares()};
-
-        // generate hints,
-        // and then force blank rows based on those hints.
-        this.state = {...this.state, ...this.genHints()};
-        this.state = {...this.state, ...this.setBlockedSections()};
-
-        // finally,
-        // reformat display hints.
-        this.state = {...this.state, ...this.genDisplayHints()};
+        this.state = this.decodeSquares(this.state);
+        this.state = this.genHints(this.state);
+        this.state = this.setBlockedSections(this.state);
+        this.state = this.genDisplayHints(this.state);
     }
 
-    decodeSquares() {
-        let base64Blob =
-            this.state.code.replace(/_/g, "/").replace(/-/g, "+");
+    decodeSquares(state : GameState) {
+        const base64Blob = state.code.replace(/_/g, "/").replace(/-/g, "+");
 
         let zipped;
         try {
@@ -185,15 +219,15 @@ class Game extends React.Component {
         } catch (err) {
             // TODO more robust error handling.
             // only case we handle now is messed up query params putting an extra ? in.
-            let start = base64Blob.indexOf("?");
+            const start = base64Blob.indexOf("?");
             zipped = window.atob(base64Blob.slice(0, start));
         }
 
         // I hate this quote replacing.
-        let boardDict =
+        const boardDict =
             JSON.parse(new TextDecoder("utf-8")
                 .decode(
-                    pako.ungzip(zipped)
+                    Pako.ungzip(zipped)
                 ).replace(/'/g, "\"")
             );
 
@@ -202,9 +236,9 @@ class Game extends React.Component {
         // that SHOULD be redone,
         // but until I get around to it,
         // we have to do this.
-        let height = parseInt(boardDict.height, 10);
-        let width = parseInt(boardDict.width, 10);
-        let size = height * width;
+        const height = parseInt(boardDict.height, 10);
+        const width = parseInt(boardDict.width, 10);
+        const size = height * width;
 
         // okay.
         // so what we're doing here,
@@ -212,42 +246,69 @@ class Game extends React.Component {
         // converting it to the four squares it represents,
         // and filling those four squares.
         // mapping from a 1D string representing 4-digit chunks to a 2D array,
-        // it's weird
-        let hexString = boardDict.squares;
+        // it's weird.
+        const hexString = boardDict.squares;
         let i = size-1;
-        let squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
+        const squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
         for (let h = hexString.length-1; h >= 0; h--) {
 
-            let binChunk = parseInt(hexString[h], 16).toString(2).padStart(4, "0");
+            const binChunk = parseInt(hexString[h], 16).toString(2);
             for (var j = 3; j >= 0; j--) {
-                let filled = binChunk[j] === "1";
+                const filled = binChunk[j] === "1";
                 let defaultDisplayValue;
-                if (this.state.solved && filled) {
-                    defaultDisplayValue = SQUARE_VALUES.FILLED;
+                if (state.solved && filled) {
+                    defaultDisplayValue = SquareValue.Filled;
                 } else {
-                    defaultDisplayValue = SQUARE_VALUES.EMPTY;
+                    defaultDisplayValue = SquareValue.Empty;
                 }
 
-                let r = Math.floor(i / width);
-                let c = i % width;
-                squares[r][c] =
-                    <Square
-                        key={i}
-                        filled={filled}
-                        displayValue={defaultDisplayValue}
-                        blocked={false}
-                        onClick={() => this.handleClick(r, c)}
-                        solved={this.state.solved}
-                    />;
+                const r = Math.floor(i / width);
+                const c = i % width;
+                squares[r][c] = new Square(
+                    {
+                        "key": i,
+                        "filled": filled,
+                        "displayValue": defaultDisplayValue,
+                        "blocked": false,
+                        "onClick": () => this.handleClick(r, c),
+                        "solved": state.solved
+                    }
+                );
 
+                // we may have less squares than the whole hex string would imply.
                 i--;
                 if (i < 0) {
-                    break;
+                    return {
+                        ...state,
+                        height: height,
+                        width: width,
+                        size: size,
+                        squares: squares,
+                    };
                 }
             }
         }
 
+        // final check - we may have a chunk or more at the beginning of hexString that are zeroes.
+        // fill out empty squares for this.
+        while (i >= 0) {
+            const r = Math.floor(i / width);
+            const c = i % width;
+            squares[r][c] = new Square(
+                {
+                    "key": i,
+                    "filled": false,
+                    "displayValue": SquareValue.Empty,
+                    "blocked": false,
+                    "onClick": () => this.handleClick(r, c),
+                    "solved": state.solved
+                }
+            );
+            i--;
+        }
+
         return {
+            ...state,
             height: height,
             width: width,
             size: size,
@@ -255,9 +316,9 @@ class Game extends React.Component {
         };
     }
 
-    genHints() {
-        let leftHints = [...Array(this.state.height).keys()].map(() => []);
-        let topHints = [...Array(this.state.width).keys()].map(() => []);
+    genHints(state: GameState) {
+        const leftHints : number[][] = [...Array(state.height).keys()].map(() => []);
+        const topHints : number[][] = [...Array(state.width).keys()].map(() => []);
 
         // calculate max top/left hints as we go,
         // so we don't have to do it later.
@@ -271,11 +332,11 @@ class Game extends React.Component {
         // if we encounter an empty square while having a count,
         // add that as a hint.
         // empty columns are handled in a later step.
-        let colCounts = Array(this.state.width).fill(0);
-        for (let [r, row] of this.state.squares.entries()) {
-            let rowCount = 0;
+        const colCounts = Array(state.width).fill(0);
+        for (const [r, row] of state.squares.entries()) {
 
-            for (let [c, square] of row.entries()) {
+            let rowCount = 0;
+            for (const [c, square] of row.entries()) {
                 if (square.props.filled) {
                     rowCount += 1;
                     colCounts[c] += 1;
@@ -320,7 +381,7 @@ class Game extends React.Component {
         }
 
         // handle any leftover column counts uncounted due to not finding an empty square.
-        for (let [c, colCount] of colCounts.entries()) {
+        for (const [c, colCount] of colCounts.entries()) {
             if (colCount > 0) {
                 topHints[c].push(colCount);
 
@@ -337,6 +398,7 @@ class Game extends React.Component {
         }
 
         return {
+            ...state,
             topHints: topHints,
             leftHints: leftHints,
             maxLeftHintSize: maxLeftHintSize,
@@ -344,31 +406,27 @@ class Game extends React.Component {
         };
     }
 
-    setBlockedSections() {
-        let squares = this.state.squares.slice();
-        for (let [r, row] of squares.entries()) {
-            for (let [c, square] of row.entries()) {
-                // TODO must be a way to do this more nicely.
-                if (this.state.leftHints[r][0] === 0 ||
-                    this.state.topHints[c][0] === 0) {
-
-                    squares[r][c] = React.cloneElement(
-                        square,
-                        {
-                            blocked: true,
-                            displayValue: SQUARE_VALUES.CROSSED_OFF,
-                        }
-                    );
+    setBlockedSections(state : GameState) {
+        const squares : Square[][] = state.squares.map((row, r) => {
+            return row.map((square, c) => {
+                const newProps = {...square.props};
+                if (state.leftHints[r][0] === 0 ||
+                    state.topHints[c][0] === 0) {
+                    newProps.blocked = true;
+                    newProps.displayValue = SquareValue.CrossedOff;
                 }
-            }
-        }
+
+                return new Square(newProps);
+            });
+        });
 
         return {
+            ...state,
             squares: squares,
         };
     }
 
-    genDisplayHints() {
+    genDisplayHints(state : GameState) {
         // we're essentially just padding hints out here.
         // we want all top hints to be arrays of the same length,
         // and we want all left hints to be arrays of the same length.
@@ -380,58 +438,56 @@ class Game extends React.Component {
         // we also want the top hints rearranged into rows,
         // not columns.
 
-        let displayLeftHints = [];
-        for (let hint of this.state.leftHints) {
-            let newHint = [];
-            if (hint.length < this.state.maxLeftHintSize) {
+        const displayLeftHints : string[][] = [];
+        for (const hint of state.leftHints) {
+            const newHint : string[] = [];
+            if (hint.length < state.maxLeftHintSize) {
                 newHint
-                    .push(...Array(this.state.maxLeftHintSize - hint.length)
-                        .fill(null));
+                    .push(...Array(state.maxLeftHintSize - hint.length)
+                        .fill(""));
             }
-            newHint.push(...hint);
+            newHint.push(...(hint.map((num) => num.toString())));
 
             displayLeftHints.push(newHint);
         }
 
-        let displayTopHints = [...Array(this.state.maxTopHintSize).keys()]
+        const displayTopHints : string[][] = [...Array(state.maxTopHintSize).keys()]
             .map(
-                () => Array(this.state.maxLeftHintSize).fill(null)
+                () => Array(state.maxLeftHintSize).fill("")
             );
-        for (let hintCol of this.state.topHints) {
-            let paddedHintCol = [];
-            if (hintCol.length < this.state.maxTopHintSize) {
-                paddedHintCol.push(...Array(this.state.maxTopHintSize - hintCol.length)
-                    .fill(null));
+        for (const hintCol of state.topHints) {
+            const paddedHintCol : string[] = [];
+            if (hintCol.length < state.maxTopHintSize) {
+                paddedHintCol.push(...Array(state.maxTopHintSize - hintCol.length)
+                    .fill(""));
             }
-            paddedHintCol.push(...hintCol);
+            paddedHintCol.push(...(hintCol.map((num) => num.toString())));
 
             // in addition to padding,
             // we want to rearrange the top hints from "vertical" arrays to "horizontal",
             // to make displaying them more straightforward.
-            for (let [h, hint] of paddedHintCol.entries()) {
+            for (const [h, hint] of paddedHintCol.entries()) {
                 displayTopHints[h].push(hint);
             }
         }
 
         return {
+            ...state,
             displayTopHints: displayTopHints,
             displayLeftHints: displayLeftHints,
         };
     }
 
-    handleClick(r, c) {
-        let squares = this.state.squares.slice();
+    handleClick(r : number, c : number) {
+        const squares = this.state.squares.slice();
 
-        let oldSquare = squares[r][c];
-        let newDisplayValue = SQUARE_VALUES_LIST[
-            (SQUARE_VALUES_LIST.indexOf(oldSquare.props.displayValue) + 1)
-                % SQUARE_VALUES_LIST.length
-        ];
+        const square = squares[r][c];
+        const displayValue = (square.props.displayValue + 1) % SQUARE_VALUES_NUM;
 
-        squares[r][c] = React.cloneElement(
-            oldSquare,
+        squares[r][c] = new Square(
             {
-                displayValue: newDisplayValue,
+                ...square.props,
+                displayValue: displayValue,
             }
         );
 
@@ -441,13 +497,10 @@ class Game extends React.Component {
     }
 
     validate() {
-        for (let row of this.state.squares) {
-            for (let square of row) {
-                if ((square.props.filled && square.props.displayValue === SQUARE_VALUES.EMPTY) ||
-                    (!square.props.filled && square.props.displayValue === SQUARE_VALUES.FILLED)) {
-                    this.setState({
-                        validateResult: "No!❌",
-                    });
+        for (const row of this.state.squares) {
+            for (const square of row) {
+                if ((square.props.filled && square.props.displayValue === SquareValue.Empty) ||
+                    (!square.props.filled && square.props.displayValue === SquareValue.Filled)) {
                     return;
                 }
             }
@@ -463,20 +516,20 @@ class Game extends React.Component {
             return;
         }
 
-        let squares = this.state.squares.slice();
+        const squares = this.state.squares.slice();
 
-        for (let [r, row] of squares.entries()) {
-            for (let [c, square] of row.entries()) {
+        for (const [r, row] of squares.entries()) {
+            for (const [c, square] of row.entries()) {
                 let displayValue;
                 if (square.props.blocked) {
-                    displayValue = SQUARE_VALUES.CROSSED_OFF;
+                    displayValue = SquareValue.CrossedOff;
                 } else {
-                    displayValue = SQUARE_VALUES.EMPTY;
+                    displayValue = SquareValue.Empty;
                 }
 
-                squares[r][c] = React.cloneElement(
-                    square,
+                squares[r][c] = new Square(
                     {
+                        ...square.props,
                         displayValue: displayValue,
                     }
                 );
@@ -536,22 +589,4 @@ class Game extends React.Component {
     }
 }
 
-Game.propTypes = {
-    code: PropTypes.string.isRequired,
-    solved: PropTypes.string,
-    height: PropTypes.number,
-    width: PropTypes.number,
-    squares: PropTypes.array,
-};
-
-// =======================================================================================
-let PARAMS = queryString.parse(window.location.search);
-let BOARD_CODE = PARAMS.board;
-let SOLVED = PARAMS.solved;
-
-let BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
-
-ReactDOM.render(
-    BOARD,
-    document.getElementById("root")
-);
+export default Game;
