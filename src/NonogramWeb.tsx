@@ -252,7 +252,19 @@ class Game extends React.Component<GameProps, GameState> {
         const squares = [...Array(height).keys()].map(() => [...Array(width).fill(0)]);
         for (let h = hexString.length-1; h >= 0; h--) {
 
-            const binChunk = parseInt(hexString[h], 16).toString(2);
+            var binChunk = parseInt(hexString[h], 16).toString(2);
+
+            if (binChunk.length < 4) {
+
+                var diff = 4 - binChunk.length;
+
+                while (diff > 0) {
+                    binChunk = "0" + binChunk;
+                    diff--;
+                }
+
+            }
+
             for (var j = 3; j >= 0; j--) {
                 const filled = binChunk[j] === "1";
                 let defaultDisplayValue;
