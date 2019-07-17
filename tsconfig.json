@@ -8,6 +8,7 @@
     },
     "compilerOptions": {
         "alwaysStrict": true,
+        "exclude": "./node_modules/**/node_modules",
         "downlevelIteration": true,
         "forceConsistentCasingInFileNames": true,
         "jsx": "react",
