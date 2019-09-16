@@ -153,14 +153,14 @@ class Board extends React.Component<BoardProps, {}> {
 }
 
 interface GameProps {
-    code: string;
+    code: string|null|undefined;
     solved: boolean;
 
     children?: React.ReactNode;
 }
 
 interface GameState {
-    code: string;
+    code: string|null|undefined;
     solved: boolean;
 
     validateResult: string;
@@ -181,6 +181,9 @@ interface GameState {
 }
 
 class Game extends React.Component<GameProps, GameState> {
+    private defaultCode = "eJyrVs9IzUzPKFG3UrDQUVAvz0wpyQCyDY2An" +
+        "OLC0sSi1GIgVz051cAw1cDALNXC3DwlOS0tJS0tLTU5Rb0WAG0IE5M";
+
     constructor(props : GameProps) {
         super(props);
 
@@ -211,13 +214,24 @@ class Game extends React.Component<GameProps, GameState> {
     }
 
     decodeSquares(state : GameState) {
-        const base64Blob = state.code.replace(/_/g, "/").replace(/-/g, "+");
+
+        // default code to something sensible.
+        let code: string;
+        if (!state.code) {
+            code = this.defaultCode;
+        } else {
+            console.log("state.code is " + state.code);
+            code = state.code;
+        }
+
+        const base64Blob = code.replace(/_/g, "/").replace(/-/g, "+");
 
         let zipped;
         try {
             zipped = window.atob(base64Blob);
         } catch (err) {
             // TODO more robust error handling.
+            // specifically, capture the unzip of the default code and store that somewhere too.
             // only case we handle now is messed up query params putting an extra ? in.
             const start = base64Blob.indexOf("?");
             zipped = window.atob(base64Blob.slice(0, start));

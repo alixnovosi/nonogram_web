@@ -24,13 +24,9 @@ if (QUERY_SOLVED &&
     SOLVED = true;
 }
 
-// no point rendering if there is no code.
-// TODO put up a nice message or something if there isn't code.
-if (BOARD_CODE) {
-    const BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
+const BOARD = <Game code={BOARD_CODE} solved={SOLVED}/>;
 
-    ReactDOM.render(
-        BOARD,
-        document.getElementById("root")
-    );
-}
+ReactDOM.render(
+    BOARD,
+    document.getElementById("root")
+);

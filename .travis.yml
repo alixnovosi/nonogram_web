@@ -1,0 +1,9 @@
+language: typescript
+
+os:
+  - linux
+
+install:
+
+script:
+
