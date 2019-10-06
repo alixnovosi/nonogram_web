@@ -1,6 +1,6 @@
 {
     "name": "nonogram_web",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "private": true,
     "homepage": "https://github.com/alixnovosi/nonogram_web",
     "dependencies": {
@@ -10,8 +10,9 @@
         "react-dom": "^16.9.0"
     },
     "scripts": {
-        "dev": "webpack-dev-server",
-        "build": "webpack --mode production"
+        "dev": "TS_NODE_PROJECT=\"tsconfig-webpack.json\" NODE_ENV=dev webpack-dev-server",
+        "build": "TS_NODE_PROJECT=\"tsconfig-webpack.json\" NODE_ENV=prod webpack --mode production",
+        "test": "echo \"Error: no test specified\" && exit 1"
     },
     "browserslist": [
         ">0.2%",
@@ -21,14 +22,29 @@
     ],
     "devDependencies": {
         "@babel/core": "^7.6.0",
+        "@babel/plugin-proposal-class-properties": "^7.5.5",
+        "@babel/plugin-proposal-decorators": "^7.6.0",
         "@babel/preset-env": "^7.6.0",
+        "@babel/preset-react": "^6.24.1",
+        "@babel/preset-typescript": "^7.6.0",
         "@fimbul/mithotyn": "^0.21.0",
         "@fimbul/wotan": "^0.21.1",
+        "@types/node": "^12.7.5",
         "@types/pako": "^1.0.1",
         "@types/react": "^16.9.0",
         "@types/react-dom": "^16.9.0",
+        "@types/terser-webpack-plugin": "^1.2.1",
+        "@types/webpack": "^4.39.1",
+        "@types/webpack-dev-server": "^3.1.7",
         "awesome-typescript-loader": "^5.2.1",
+        "babel-loader": "^8.0.6",
+        "babel-polyfill": "^6.26.0",
+        "babel-preset-stage-0": "^6.24.1",
+        "core-js": "^3.2.1",
         "source-map-loader": "^0.2.4",
+        "terser-webpack-plugin": "^2.1.0",
+        "ts-node": "^8.4.1",
+        "tsconfig-paths": "^3.9.0",
         "typescript": "^3.6.3",
         "webpack": "^4.40.2",
         "webpack-cli": "^3.3.8",
