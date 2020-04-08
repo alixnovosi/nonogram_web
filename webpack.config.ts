@@ -1,11 +1,17 @@
 import * as path from "path";
-import * as webpack from "webpack";
+import { LoaderOptionsPlugin } from "webpack";
+import { Configuration as WebpackConfiguration } from "webpack";
+import { Configuration as WebpackDevServerConfiguration} from "webpack-dev-server";
 
 import TerserPlugin from "terser-webpack-plugin";
 
 const isProduction = process.env.NODE_ENV === "prod";
 
-const config: webpack.Configuration = {
+interface Configuration extends WebpackConfiguration {
+    devServer?: WebpackDevServerConfiguration;
+}
+
+const config: Configuration = {
     // documentation: https://webpack.js.org/configuration/dev-server/
     devServer: {
         historyApiFallback: true,
@@ -94,7 +100,7 @@ export default config;
 if (isProduction) {
     // http://vue-loader.vuejs.org/en/workflow/production.html
     module.exports.plugins = (module.exports.plugins || []).concat([
-        new webpack.LoaderOptionsPlugin({
+        new LoaderOptionsPlugin({
             minimize: true,
         })
     ]);
